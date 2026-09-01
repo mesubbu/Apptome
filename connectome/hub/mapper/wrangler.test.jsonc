@@ -1,0 +1,24 @@
+{
+  // Test-only. Same Worker, no Workers AI: the suite must not open a remote
+  // inference session or incur usage. Production wrangler.jsonc keeps the AI
+  // binding; llm-mapper still degrades to static when env.AI is absent.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "mapper",
+  "main": "src/index.js",
+  "compatibility_date": "2026-08-04",
+  "observability": { "enabled": true },
+  "vars": {
+    "AI_GATEWAY": "connectome-mapper",
+    "AI_MODEL": "@cf/meta/llama-3.1-8b-instruct"
+  },
+  "ratelimits": [
+    {
+      "name": "RATE_LIMIT",
+      "namespace_id": "1003",
+      "simple": { "limit": 30, "period": 10 }
+    }
+  ],
+  "analytics_engine_datasets": [
+    { "binding": "METRICS", "dataset": "connectome-map" }
+  ]
+}

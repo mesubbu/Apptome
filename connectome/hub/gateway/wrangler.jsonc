@@ -53,6 +53,75 @@
   // ------------------------------------------------------------------
   "vars": {
     "ENVIRONMENT": "production"
+  },
+
+  // ------------------------------------------------------------------
+  // KV — short-TTL cache of /.well-known/connectome.json (REVIEW.md G4).
+  //
+  // Read-through on a user-initiated declare. No background refresh. A miss
+  // or a failed put degrades to a live fetch; the declare still works.
+  // `id` is omitted so wrangler can provision the namespace on first deploy
+  // and so `pnpm dev` still needs no Cloudflare account.
+  // ------------------------------------------------------------------
+  "kv_namespaces": [
+    { "binding": "MANIFESTS" }
+  ],
+
+  // ------------------------------------------------------------------
+  // Rate Limiting (REVIEW.md G6). Keyed in code by connectome id (or Origin
+  // before pairing), never by IP. Two bindings because POST /api/pair mints
+  // an id and needs a tighter bucket than a graph read.
+  //
+  // period must be 10 or 60. Missing/throwing limiter degrades to allow, so
+  // the local mesh still boots with no extra config.
+  // ------------------------------------------------------------------
+  "ratelimits": [
+    {
+      "name": "RATE_LIMIT",
+      "namespace_id": "1001",
+      "simple": { "limit": 60, "period": 10 }
+    },
+    {
+      "name": "PAIR_LIMIT",
+      "namespace_id": "1002",
+      "simple": { "limit": 8, "period": 60 }
+    }
+  ],
+
+  // ------------------------------------------------------------------
+  // Analytics Engine (REVIEW.md G9). HubDO.#audit writes hashed (kind, edge,
+  // outcome, bytes). Dataset is created on first write. A failure degrades;
+  // the SQLite audit row is what the user can still export.
+  // ------------------------------------------------------------------
+  "analytics_engine_datasets": [
+    { "binding": "METRICS", "dataset": "connectome-audit" }
+  ],
+
+  // Production custom domains. Bindings are not inherited — they are restated.
+  // Replace example.com with CONNECTOME_ZONE (docs/topology.md). scripts/deploy.mjs
+  // also passes SURFACE_ORIGIN / ALLOWED_ORIGINS so a leftover placeholder cannot
+  // silently keep localhost on the public allowlist.
+  "env": {
+    "production": {
+      "name": "connectome-gateway",
+      "workers_dev": false,
+      "routes": [{ "pattern": "hub.example.com", "custom_domain": true }],
+      "vars": {
+        "ENVIRONMENT": "production",
+        "SURFACE_ORIGIN": "https://surface.example.com",
+        "ALLOWED_ORIGINS": "https://crm.example.com,https://ledger.example.com,https://tick.example.com"
+      },
+      "rules": [{ "type": "Text", "globs": ["**/*.js.txt"], "fallthrough": false }],
+      "durable_objects": {
+        "bindings": [{ "name": "HUB", "class_name": "HubDO" }]
+      },
+      "kv_namespaces": [{ "binding": "MANIFESTS" }],
+      "ratelimits": [
+        { "name": "RATE_LIMIT", "namespace_id": "1001", "simple": { "limit": 60, "period": 10 } },
+        { "name": "PAIR_LIMIT", "namespace_id": "1002", "simple": { "limit": 8, "period": 60 } }
+      ],
+      "analytics_engine_datasets": [{ "binding": "METRICS", "dataset": "connectome-audit" }]
+    }
   }
 
   // DELIBERATELY ABSENT, and CI enforces their absence (ci/distortion-tests.mjs):

@@ -13,13 +13,23 @@
     "dev:gateway": "pnpm --filter gateway dev",
     "dev:mapper": "pnpm --filter mapper dev",
     "sync": "node scripts/sync-bridge.mjs && node scripts/build-env.mjs",
-    "check": "node ci/distortion-tests.mjs && node ci/provide-context.mjs"
+    "check": "node ci/distortion-tests.mjs && node ci/provide-context.mjs && vitest run",
+    "test": "vitest run",
+    "deploy": "node scripts/deploy.mjs"
+  },
+  "engines": {
+    "node": ">=20"
   },
   "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.22.0",
+    "vitest": "^4.1.11",
     "wrangler": "^4.98.0"
   },
   "packageManager": "pnpm@10.30.3",
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild", "workerd"]
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "workerd"
+    ]
   }
 }

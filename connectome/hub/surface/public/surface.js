@@ -17,7 +17,7 @@
  * quietly turns every other app into an anonymous backend (§10).
  */
 
-import { HubClient, PAIRING_REQUIRED } from "./hub-client.js";
+import { HubClient, PAIRING_REQUIRED, RATE_LIMITED } from "./hub-client.js";
 import { MAPPER_URL } from "./config.js";
 import {
   FAILURE,
@@ -101,7 +101,9 @@ async function boot() {
     state.view =
       err?.code === PAIRING_REQUIRED
         ? { name: "pair", pairing: err.pairing ?? {} }
-        : { name: "failure", code: FAILURE.HUB_UNAVAILABLE };
+        : err?.code === RATE_LIMITED
+          ? { name: "rate-limited", detail: err.detail }
+          : { name: "failure", code: FAILURE.HUB_UNAVAILABLE };
     return render();
   }
 
@@ -219,6 +221,8 @@ function render() {
       return body.append(viewFailure(state.view));
     case "pair":
       return body.append(viewPair(state.view));
+    case "rate-limited":
+      return body.append(viewRateLimited(state.view));
     default:
       return body.append(viewDirectory());
   }
@@ -322,6 +326,28 @@ async function completePairing(token, status) {
   await boot();
 }
 
+function viewRateLimited(v) {
+  const wrap = node("div", "stack");
+  const box = node("div", "notice");
+  box.append(strongText("Too many requests"));
+  box.append(
+    pText(
+      v?.detail
+        ? String(v.detail)
+        : "This connectome has made too many requests in a short time. Nothing further ran."
+    )
+  );
+  box.append(pText("Wait a moment and try again. Nothing was written."));
+  const row = node("div", "row");
+  const again = node("button", "btn primary");
+  again.textContent = "Try again";
+  again.addEventListener("click", () => location.reload());
+  row.append(again);
+  box.append(row);
+  wrap.append(box);
+  return wrap;
+}
+
 function loadScript(src) {
   return new Promise((resolve, reject) => {
     const existing = document.querySelector(`script[src="${src}"]`);
@@ -377,6 +403,7 @@ function viewDirectory() {
 
     const icon = node("span", "member-icon");
     icon.textContent = (member.name || "?").slice(0, 1).toUpperCase();
+    icon.style.setProperty("--app-hue", appHue(member.origin));
     card.append(icon);
 
     const text = node("span", "member-text");
@@ -402,9 +429,14 @@ function viewDirectory() {
     card.append(text);
 
     // Presence is transport, not membership (§7.1). Absent members stay listed.
+    // The dot is never the only signal: the state is also written as text.
+    const pres = node("span", "presence-wrap");
     const dot = node("span", `presence ${member.present ? "on" : "off"}`);
     dot.title = member.present ? "open now" : "not open";
-    card.append(dot);
+    const plabel = node("span", "presence-label");
+    plabel.textContent = member.present ? "open now" : "not open";
+    pres.append(dot, plabel);
+    card.append(pres);
 
     wrap.append(card);
   }
@@ -458,6 +490,7 @@ function viewMember(origin) {
     return wrap;
   }
 
+  wrap.append(backBtn({ name: "directory" }));
   wrap.append(crumb(member.name, hostLabel(member.origin)));
 
   if (!member.present) {
@@ -490,7 +523,7 @@ function viewMember(origin) {
   }
 
   for (const cap of member.capabilities) {
-    const row = node("button", "cap");
+    const row = node("button", `cap ${cap.readOnly ? "read" : "write"}`);
     row.disabled = state.paused;
     row.addEventListener("click", () => startEdge(member, cap));
 
@@ -610,6 +643,7 @@ async function openInBackground(member, button) {
 
 function viewReadConsent({ member, cap }) {
   const wrap = node("div", "stack");
+  wrap.append(backBtn({ name: "member", origin: member.origin }));
   wrap.append(crumb(member.name, cap.name));
   const box = node("div", "notice");
   box.append(strongText(`Run ${cap.name} in ${member.name}?`));
@@ -637,6 +671,8 @@ function viewReadConsent({ member, cap }) {
 
 function viewSourcePick({ member, cap, reads }) {
   const wrap = node("div", "stack");
+  wrap.append(backBtn({ name: "member", origin: member.origin }));
+  wrap.append(steps(WRITE_STEPS, 1));
   wrap.append(crumb(member.name, cap.name));
 
   const box = node("div", "notice");
@@ -663,7 +699,7 @@ function viewSourcePick({ member, cap, reads }) {
   }
 
   for (const r of reads) {
-    const row = node("button", "cap");
+    const row = node("button", "cap read");
     const head = node("span", "cap-head");
     const nm = node("span", "cap-name");
     nm.textContent = r.name;
@@ -720,6 +756,14 @@ async function prepareConfirm({ member, cap, sourceCap, payload }) {
         mapping = body.mapping ?? {};
         mapperName = body.mapper ?? "static";
         notes = body.notes ?? "";
+      } else {
+        const body = await res.json().catch(() => null);
+        // Named refusal, not a silent skip (§6.2). The mapper is still optional
+        // — the user fills the fields — but they are told why it did not run.
+        notes =
+          body?.code === "RATE_LIMITED" || res.status === 429
+            ? (body?.error ?? "Too many mapping requests — fill the fields yourself.")
+            : "Mapper unreachable — fill the fields yourself.";
       }
     } catch {
       // The mapper is optional. Without it the user fills the fields. The product
@@ -768,6 +812,7 @@ function blankArgs(cap) {
 function viewConfirm(v) {
   const { member, cap, sourceCap, args } = v;
   const wrap = node("div", "stack");
+  wrap.append(steps(WRITE_STEPS, 2));
   wrap.append(crumb(member.name, cap.name));
 
   const intro = node("div", "notice");
@@ -806,6 +851,7 @@ function viewConfirm(v) {
     row.append(head);
 
     const input = node("input", "field-input");
+    input.dataset.field = name;
     input.value = current.value ?? "";
     input.placeholder = current.how === PROV.MISSING ? "nothing found — type a value" : "";
     input.addEventListener("input", () => {
@@ -833,18 +879,6 @@ function viewConfirm(v) {
   jsonBox.append(pre);
   wrap.append(jsonBox);
 
-  const problems = node("div", "problems");
-  problems.id = "problems";
-  wrap.append(problems);
-
-  const row = node("div", "row");
-  const approve = node("button", "btn primary");
-  approve.id = "approve";
-  approve.textContent = "Approve and send";
-  approve.addEventListener("click", () => doWrite(v));
-  row.append(approve, cancelBtn(FAILURE.CONSENT_DENIED));
-  wrap.append(row);
-
   // Grant scope. This is the ONLY thing consent buys: permission to propose this
   // edge again, and to run that named read. It never buys a write.
   const scope = node("div", "scope");
@@ -869,6 +903,19 @@ function viewConfirm(v) {
   scope.append(sel);
   wrap.append(scope);
 
+  const problems = node("div", "problems");
+  problems.id = "problems";
+  wrap.append(problems);
+
+  // The decision is sticky: on long schemas Approve never leaves the viewport.
+  const actions = node("div", "confirm-actions");
+  const approve = node("button", "btn primary");
+  approve.id = "approve";
+  approve.textContent = "Approve and send";
+  approve.addEventListener("click", () => doWrite(v));
+  actions.append(approve, cancelBtn(FAILURE.CONSENT_DENIED));
+  wrap.append(actions);
+
   queueMicrotask(() => refreshJson(v));
   return wrap;
 }
@@ -879,6 +926,9 @@ function provenanceLine(p) {
   switch (p.how) {
     case PROV.READ:
       tag.textContent = `read from ${hostLabel(p.fromOrigin)}`;
+      // The chip carries the source app's colour: a visual trace from this
+      // field back to the app the value came from, no reading required.
+      if (p.fromOrigin) tag.style.setProperty("--app-hue", appHue(p.fromOrigin));
       break;
     case PROV.TYPED:
       tag.textContent = "you typed this";
@@ -907,19 +957,24 @@ function refreshJson(v) {
   const exact = plainArgs(v.args);
   for (const k of Object.keys(exact)) if (exact[k] === undefined) delete exact[k];
   const pre = document.getElementById("json-preview");
-  if (pre) pre.textContent = JSON.stringify(exact, null, 2);
+  if (pre) highlightJson(pre, exact);
 
   const problems = validateArgs(exact, v.cap.inputSchema);
   const box = document.getElementById("problems");
   const approve = document.getElementById("approve");
   if (!box || !approve) return;
   box.replaceChildren();
+  for (const input of document.querySelectorAll(".field-input[aria-invalid]")) {
+    input.removeAttribute("aria-invalid");
+  }
   // Never coerce silently (§4.4: "the user is the last schema check"). We block
   // and say what is wrong; we do not helpfully guess.
   for (const p of problems) {
     const line = node("div", "problem");
     line.textContent = `${p.field}: ${p.problem}`;
     box.append(line);
+    const bad = document.querySelector(`.field-input[data-field="${CSS.escape(p.field)}"]`);
+    if (bad) bad.setAttribute("aria-invalid", "true");
   }
   approve.disabled = problems.length > 0;
 }
@@ -966,6 +1021,10 @@ function viewResult(v) {
   wrap.append(crumb(v.member.name, v.cap.name));
 
   const box = node("div", "notice ok");
+  box.setAttribute("aria-live", "polite");
+  const mark = node("div", "result-mark");
+  mark.setAttribute("aria-hidden", "true");
+  box.append(mark);
   box.append(strongText(v.wrote ? "Done." : "Result"));
   box.append(
     pText(
@@ -975,6 +1034,13 @@ function viewResult(v) {
     )
   );
   wrap.append(box);
+
+  // The product promise, visible from across the room: you never left your app.
+  const host = hostMember();
+  const locus = node("div", "locus");
+  locus.style.setProperty("--app-hue", appHue(HOST_ORIGIN));
+  locus.textContent = `You're still in ${host?.name ?? hostLabel(HOST_ORIGIN)} · ${HOST_ORIGIN}`;
+  wrap.append(locus);
 
   if (v.sent) {
     wrap.append(jsonBlock("What was sent", v.sent));
@@ -998,6 +1064,10 @@ function viewFailure(v) {
   const copy = FAILURE_COPY[v.code] ?? { title: "Stopped", action: "none" };
   const wrap = node("div", "stack");
   const box = node("div", "notice bad");
+  box.setAttribute("aria-live", "polite");
+  const mark = node("div", "result-mark bad");
+  mark.setAttribute("aria-hidden", "true");
+  box.append(mark);
   box.append(strongText(copy.title));
   if (v.detail) box.append(pText(String(v.detail)));
   box.append(pText("Nothing further ran. Nothing was retried."));
@@ -1042,6 +1112,7 @@ async function openGrants() {
 
 function viewGrants(v) {
   const wrap = node("div", "stack");
+  wrap.append(backBtn({ name: "directory" }));
   wrap.append(crumb("Your connectome", "connections you have allowed"));
 
   const note = node("div", "notice");
@@ -1142,6 +1213,7 @@ function empty(title, body) {
 
 function crumb(title, sub) {
   const box = node("div", "crumb");
+  box.setAttribute("aria-current", "page");
   const a = node("div", "crumb-title");
   a.textContent = title;
   const b = node("div", "crumb-sub");
@@ -1155,7 +1227,7 @@ function jsonBlock(label, data) {
   const head = node("div", "json-head");
   head.textContent = label;
   const pre = node("pre", "json-body");
-  pre.textContent = JSON.stringify(data, null, 2);
+  highlightJson(pre, data);
   box.append(head, pre);
   return box;
 }
@@ -1167,6 +1239,93 @@ function cancelBtn(code) {
     if (code) return go({ name: "failure", code });
     go({ name: "directory" });
   });
+  return b;
+}
+
+/* ================================================================== *
+ * visual language helpers (KimiPlan.md §4)
+ *
+ * These paint. They never decide: no flow, no consent, no data handling
+ * lives here.
+ * ================================================================== */
+
+/**
+ * Deterministic per-origin hue — every app gets a stable "face" colour with
+ * no network and no app-supplied asset. Used for avatars, provenance dots,
+ * and the locus chip. Decorative only; identity is still the origin string.
+ */
+function appHue(origin) {
+  let h = 0;
+  for (const c of String(origin)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return h % 360;
+}
+
+/**
+ * The JSON stays EXACT: the same characters as JSON.stringify, only wrapped
+ * in spans for colour. Built with createElement + textContent — never
+ * innerHTML — so the <pre>'s textContent is byte-identical to the payload,
+ * and untrusted values stay inert text.
+ *
+ * Input is always our own JSON.stringify output, so a tiny tokenizer over a
+ * well-formed string suffices: strings (with a trailing-colon check to tell
+ * keys from string values), numbers, booleans, null; everything else is
+ * plain text nodes.
+ */
+function highlightJson(pre, data) {
+  const text = JSON.stringify(data, null, 2);
+  pre.replaceChildren();
+  const re =
+    /("(?:[^"\\]|\\.)*")(\s*:)?|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|\b(true|false)\b|\b(null)\b/g;
+  let last = 0;
+  let m;
+  const paint = (cls, s) => {
+    const sp = node("span", cls);
+    sp.textContent = s;
+    pre.append(sp);
+  };
+  while ((m = re.exec(text))) {
+    if (m.index > last) pre.append(document.createTextNode(text.slice(last, m.index)));
+    if (m[1] !== undefined) {
+      if (m[2] !== undefined) {
+        paint("tok-key", m[1]);
+        pre.append(document.createTextNode(m[2]));
+      } else {
+        paint("tok-str", m[1]);
+      }
+    } else if (m[3] !== undefined) {
+      paint("tok-num", m[3]);
+    } else if (m[4] !== undefined) {
+      paint("tok-bool", m[4]);
+    } else if (m[5] !== undefined) {
+      paint("tok-null", m[5]);
+    }
+    last = re.lastIndex;
+  }
+  if (last < text.length) pre.append(document.createTextNode(text.slice(last)));
+}
+
+/**
+ * Orientation chips: where am I in the write flow. Purely informational —
+ * they are not links and change no state.
+ */
+const WRITE_STEPS = ["Pick what to do", "Pick the source", "Check & approve"];
+
+function steps(labels, nowIndex) {
+  const row = node("div", "steps");
+  labels.forEach((label, i) => {
+    const s = node("span", "step" + (i < nowIndex ? " done" : i === nowIndex ? " now" : ""));
+    s.textContent = `${i + 1} · ${label}`;
+    row.append(s);
+  });
+  return row;
+}
+
+/** Quiet way back. Cancel on the confirm card remains the CONSENT_DENIED path. */
+function backBtn(target) {
+  const b = node("button", "back");
+  b.type = "button";
+  b.textContent = "‹ Back";
+  b.addEventListener("click", () => go(target));
   return b;
 }
 

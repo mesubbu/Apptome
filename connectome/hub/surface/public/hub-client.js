@@ -38,6 +38,13 @@ import {
  */
 export const PAIRING_REQUIRED = "PAIRING_REQUIRED";
 
+/**
+ * Door code, not a protocol FAILURE. Rate limiting stopped the request before
+ * any edge ran. Rendering this as HUB_UNAVAILABLE would tell the user the
+ * graph is gone when the truth is "wait a moment".
+ */
+export const RATE_LIMITED = "RATE_LIMITED";
+
 export class HubClient {
   constructor({ host, session }) {
     this.host = host;
@@ -64,6 +71,12 @@ export class HubClient {
     // browser has not been paired yet" — two different problems, two different
     // things for the user to do.
     const pairing = await this.pairStatus();
+    if (pairing.code === RATE_LIMITED) {
+      const err = new Error("rate limited");
+      err.code = RATE_LIMITED;
+      err.detail = pairing.error;
+      throw err;
+    }
     if (pairing.required && !pairing.paired) {
       const err = new Error("pairing required");
       err.code = PAIRING_REQUIRED;
@@ -84,6 +97,7 @@ export class HubClient {
    */
   async pairStatus() {
     const res = await this.#api("/api/pair");
+    if (res?.code === RATE_LIMITED) return res;
     if (res?.ok !== true) {
       // Treat an unreachable gateway as "not required": the caller is about to
       // fail with HUB_UNAVAILABLE anyway, and claiming a challenge is needed
@@ -313,6 +327,14 @@ export class HubClient {
     });
     const json = await res.json().catch(() => null);
     if (!res.ok) {
+      if (json?.code === RATE_LIMITED) {
+        return {
+          ok: false,
+          code: RATE_LIMITED,
+          error: json.error ?? "too many requests from this connectome; wait a moment and try again",
+          at: Date.now(),
+        };
+      }
       return {
         ...failure(FAILURE.HUB_UNAVAILABLE, json?.error ?? `${res.status}`),
         error: json?.error ?? `${res.status}`,

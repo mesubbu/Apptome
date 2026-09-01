@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev --port 8790"
+    "dev": "wrangler dev --port 8790",
+    "deploy": "wrangler deploy --env production"
   }
 }

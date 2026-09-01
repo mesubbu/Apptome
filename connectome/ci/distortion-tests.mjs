@@ -150,6 +150,27 @@ function scannerCatchesRejectedDoors() {
     }
   `);
   assert(doHits.includes("alarm(") && doHits.includes("scheduled("), "scanner fails alarm(/scheduled( in HubDO");
+
+  // REVIEW.md G12: a production-only block is the smuggling path. The regex
+  // already matches anywhere in the file; this fixture is what proves it.
+  const nested = wranglerBans(`{
+    "name": "x",
+    "env": {
+      "production": {
+        "browser": { "binding": "BROWSER" },
+        "triggers": { "crons": ["* * * * *"] },
+        "queues": {},
+        "workflows": {}
+      }
+    }
+  }`);
+  assert(
+    nested.includes('"browser" binding (Browser Rendering)'),
+    "scanner fails a browser binding smuggled into env.production"
+  );
+  assert(nested.some((h) => h.includes("crons")), "scanner fails triggers.crons inside env.production");
+  assert(nested.includes("queues"), "scanner fails queues inside env.production");
+  assert(nested.includes("workflows"), "scanner fails workflows inside env.production");
 }
 
 function banExtension() {
@@ -669,6 +690,302 @@ async function assertPairing() {
   assert(!/alarm\s*\(|scheduled\s*\(/.test(code), "pairing schedules nothing");
 }
 
+/**
+ * REVIEW.md G4 / G5 / G6 / G9. The last mile before a public hostname:
+ * timeout and cap the outbound manifest fetch, cache it in KV, meter the
+ * doors, prune the audit table without a scheduler, and measure refusals
+ * without ever writing a field name to Analytics Engine.
+ *
+ * The modules under test are pure enough to import (URL, fetch, crypto.subtle,
+ * no Worker globals required), so the behaviour is exercised, not grepped.
+ */
+async function assertHardening() {
+  const gw = stripComments(read(join(ROOT, "hub/gateway/src/index.js")));
+  const doSrc = stripComments(read(join(ROOT, "hub/gateway/src/hub-do.js")));
+  const manifestSrc = read(join(ROOT, "hub/gateway/src/manifest.js"));
+  const limitsSrc = read(join(ROOT, "hub/gateway/src/limits.js"));
+  const mapperIndex = stripComments(read(join(ROOT, "hub/mapper/src/index.js")));
+  const mapperLimits = read(join(ROOT, "hub/mapper/src/limits.js"));
+  const gwWrangler = read(join(ROOT, "hub/gateway/wrangler.jsonc"));
+  const mapperWrangler = read(join(ROOT, "hub/mapper/wrangler.jsonc"));
+  const surface = read(join(ROOT, "hub/surface/public/surface.js"));
+  const client = read(join(ROOT, "hub/surface/public/hub-client.js"));
+
+  const manifest = await import(pathToFileURL(join(ROOT, "hub/gateway/src/manifest.js")).href);
+  const limits = await import(pathToFileURL(join(ROOT, "hub/gateway/src/limits.js")).href);
+  const metrics = await import(pathToFileURL(join(ROOT, "hub/gateway/src/metrics.js")).href);
+  const mapMetrics = await import(pathToFileURL(join(ROOT, "hub/mapper/src/metrics.js")).href);
+  const mapperLimit = await import(pathToFileURL(join(ROOT, "hub/mapper/src/limits.js")).href);
+
+  // ---- G4: timeout, byte cap, KV ----
+  assert(/AbortSignal\.timeout/.test(manifestSrc), "manifest fetch uses AbortSignal.timeout");
+  assert(/redirect:\s*"error"/.test(manifestSrc), "manifest fetch still refuses redirects");
+  assert(/MANIFESTS/.test(manifestSrc), "manifest cache is the MANIFESTS KV binding");
+  assert(/fetchManifest\(body\?\.origin,\s*env\)/.test(gw), "declare passes env so the cache is reachable");
+  assert(manifest.MANIFEST_TTL_SECONDS >= 60, "KV TTL is at least the platform floor of 60s");
+  assert(manifest.MANIFEST_TTL_SECONDS <= 300, "KV TTL stays short — this is a poster, not a grant");
+  assert(manifest.MANIFEST_MAX_BYTES <= 32 * 1024, "manifest body cap is small");
+
+  const captured = [];
+  const poster = { name: "Acme CRM", icon: "/icon.svg", launch: "/", capabilities: [{ name: "get-open-client", summary: "x" }] };
+  const okFetch = async (url, opts) => {
+    captured.push({ url: String(url), opts });
+    return new Response(JSON.stringify(poster), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  };
+  function memoryKv() {
+    const store = new Map();
+    return {
+      store,
+      lastTtl: null,
+      async get(key, opts) {
+        const v = store.get(key);
+        if (v == null) return null;
+        return opts?.type === "json" ? JSON.parse(v) : v;
+      },
+      async put(key, value, opts) {
+        store.set(key, value);
+        this.lastTtl = opts?.expirationTtl ?? null;
+      },
+    };
+  }
+
+  const first = await manifest.fetchManifest("https://crm.example/path?x=1", { MANIFESTS: memoryKv() }, { fetch: okFetch });
+  assert(first.ok === true, "a valid poster is accepted");
+  assert(first.record.origin === "https://crm.example", "origin is re-serialised, path dropped");
+  assert(first.record.identity.name === "Acme CRM", "poster name is kept");
+  assert(captured[0].opts.redirect === "error", "redirect:error is passed to fetch");
+  assert(captured[0].opts.signal instanceof AbortSignal, "fetch is given an AbortSignal");
+
+  const hanging = async (_url, opts) =>
+    new Promise((_, reject) => {
+      const watchdog = setTimeout(() => reject(new Error("test hung: fetch was not aborted")), 200);
+      opts.signal.addEventListener("abort", () => {
+        clearTimeout(watchdog);
+        const err = new Error("aborted");
+        err.name = "TimeoutError";
+        reject(err);
+      });
+    });
+  const timed = await manifest.fetchManifest("https://slow.example", {}, { fetch: hanging, timeoutMs: 20 });
+  assert(timed.ok === false && /did not answer in time/.test(timed.error), "a hung origin is a named timeout, not a pinned isolate");
+
+  const huge = await manifest.fetchManifest(
+    "https://huge.example",
+    {},
+    { fetch: async () => new Response("x".repeat(manifest.MANIFEST_MAX_BYTES + 8), { status: 200 }) }
+  );
+  assert(huge.ok === false && /too large/.test(huge.error), "an oversized body is refused before parse");
+
+  const kv = memoryKv();
+  let fetches = 0;
+  const counting = async () => {
+    fetches += 1;
+    return new Response(JSON.stringify(poster), { status: 200 });
+  };
+  const a = await manifest.fetchManifest("https://crm.example", { MANIFESTS: kv }, { fetch: counting });
+  const b = await manifest.fetchManifest("https://crm.example", { MANIFESTS: kv }, { fetch: counting });
+  assert(a.ok && b.ok && b.cached === true, "a cache hit is flagged");
+  assert(fetches === 1, "the second declare is served from KV");
+  assert(kv.lastTtl === manifest.MANIFEST_TTL_SECONDS, "the cache write carries the short TTL");
+
+  let misses = 0;
+  const missing = async () => {
+    misses += 1;
+    return new Response("nope", { status: 404 });
+  };
+  const missKv = memoryKv();
+  await manifest.fetchManifest("https://gone.example", { MANIFESTS: missKv }, { fetch: missing });
+  await manifest.fetchManifest("https://gone.example", { MANIFESTS: missKv }, { fetch: missing });
+  assert(misses === 2, "failures are not cached");
+  assert(missKv.store.size === 0, "a 404 does not write KV");
+
+  const downKv = {
+    get: async () => {
+      throw new Error("kv down");
+    },
+    put: async () => {
+      throw new Error("kv down");
+    },
+  };
+  const degraded = await manifest.fetchManifest("https://crm.example", { MANIFESTS: downKv }, { fetch: okFetch });
+  assert(degraded.ok === true, "a KV failure degrades to a live fetch rather than failing the declare");
+
+  const ftp = await manifest.fetchManifest("ftp://crm.example");
+  assert(ftp.ok === false, "non-http(s) origins are still refused");
+
+  // ---- G5: inline prune, no scheduler ----
+  assert(metrics.auditWatermark(250, 200) === 50, "watermark is maxId - keep");
+  assert(metrics.auditWatermark(10, 200) === 0, "under the cap there is nothing to delete");
+  assert(metrics.auditWatermark(200, 200) === 0, "exactly the cap is not pruned");
+  assert(metrics.auditWatermark(0, 200) === 0, "an empty table has watermark 0");
+  assert(/DELETE FROM audit WHERE id <=/.test(doSrc), "audit prune is DELETE by id watermark");
+  assert(/#pruneAudit/.test(doSrc) && /this\.#pruneAudit\(\)/.test(doSrc), "prune runs from #audit, not from a timer");
+  assert(!/\bsetAlarm\s*\(/.test(doSrc), "audit prune does not call setAlarm");
+  assert(hubDoBans(doSrc).length === 0, "adding prune did not introduce alarm(/scheduled(");
+
+  // ---- G6: named rate limit, keyed without IP ----
+  assert(/"name":\s*"RATE_LIMIT"/.test(gwWrangler), "gateway binds RATE_LIMIT");
+  assert(/"name":\s*"PAIR_LIMIT"/.test(gwWrangler), "gateway binds a tighter PAIR_LIMIT");
+  assert(/"name":\s*"RATE_LIMIT"/.test(mapperWrangler), "mapper binds RATE_LIMIT");
+  assert(/enforceLimit/.test(gw) && /limitKey/.test(gw), "gateway enforces the limiter on its doors");
+  assert(/enforceLimit/.test(mapperIndex), "mapper enforces the limiter on /map");
+  assert(!/CF-Connecting-IP/.test(stripComments(limitsSrc)), "gateway rate-limit key is not the client IP");
+  assert(!/CF-Connecting-IP/.test(stripComments(mapperLimits)), "mapper rate-limit key is not the client IP");
+  assert(/RATE_LIMITED/.test(client) && /rate-limited/.test(surface), "surface renders RATE_LIMITED as its own view");
+
+  assert((await limits.enforceLimit({}, "x")) === null, "a missing limiter degrades to allow");
+  assert(
+    (await limits.enforceLimit({ RATE_LIMIT: { limit: async () => { throw new Error("down"); } } }, "x")) === null,
+    "a throwing limiter degrades to allow"
+  );
+  assert(
+    (await limits.enforceLimit({ RATE_LIMIT: { limit: async () => ({ success: true }) } }, "x")) === null,
+    "under the cap, the door opens"
+  );
+  const blocked = await limits.enforceLimit(
+    { RATE_LIMIT: { limit: async ({ key }) => ({ success: key !== "hot" }) } },
+    "hot"
+  );
+  assert(blocked?.status === 429, "a limited request is HTTP 429");
+  const blockedBody = JSON.parse(await blocked.text());
+  assert(blockedBody.code === limits.RATE_LIMITED, "the 429 is the named refusal RATE_LIMITED");
+  assert(blockedBody.ok === false, "the 429 is not a silent drop");
+  assert(/connectome/.test(blockedBody.error), "the 429 tells the user which door closed");
+
+  const unpaired = new Request("https://hub.example/api/graph", {
+    headers: {
+      Origin: "https://a.example",
+      "CF-Connecting-IP": "203.0.113.9",
+      "x-connectome-id": "guessed",
+    },
+  });
+  assert(
+    (await limits.limitKey({ ENVIRONMENT: "production" }, unpaired)) === "https://a.example",
+    "unpaired production keys by Origin, not IP, not a guessed id"
+  );
+  assert(mapperLimit.limitKey(unpaired) === "https://a.example", "mapper keys by Origin, not IP");
+
+  const pairEnv = { PAIR_SECRET: "unit-test-key", TURNSTILE_SECRET: "x", ENVIRONMENT: "production" };
+  const { mintToken } = await import(pathToFileURL(join(ROOT, "hub/gateway/src/pairing.js")).href);
+  const token = await mintToken(pairEnv);
+  const paired = new Request("https://hub.example/api/graph", {
+    headers: { Origin: "https://a.example", cookie: `cx=${token}`, "CF-Connecting-IP": "203.0.113.9" },
+  });
+  const pairedKey = await limits.limitKey(pairEnv, paired);
+  assert(pairedKey !== "https://a.example" && pairedKey !== "203.0.113.9", "a paired request keys by connectome id");
+  assert(pairedKey.length >= 40, "the connectome-id key carries the minted entropy");
+
+  // ---- G9: hashed edge, never a field name, degrade on write failure ----
+  assert(/"binding":\s*"METRICS"/.test(gwWrangler), "gateway binds Analytics Engine METRICS");
+  assert(/"binding":\s*"METRICS"/.test(mapperWrangler), "mapper binds Analytics Engine METRICS");
+  assert(/emitAuditMetric/.test(doSrc), "HubDO.#audit emits an Analytics Engine datapoint");
+  assert(/emitMapMetric/.test(mapperIndex), "mapper emits match/refusal datapoints");
+
+  const edge = "https://crm.example->https://ledger.example";
+  const point = await metrics.auditDataPoint("relay", edge, "forwarded", 12, "do-id");
+  const dump = JSON.stringify(point);
+  assert(!dump.includes("crm.example") && !dump.includes("ledger.example"), "raw origin pair does not enter Analytics Engine");
+  assert(point.blobs[0] === "relay" && point.blobs[2] === "forwarded", "kind and outcome are blobs");
+  assert(point.blobs[1] !== edge && point.blobs[1].length === 32, "the edge blob is a truncated hash");
+  assert(point.doubles[0] === 12, "bytes are a double");
+
+  let writes = 0;
+  metrics.writeMetric(
+    {
+      writeDataPoint: () => {
+        writes += 1;
+        throw new Error("dataset down");
+      },
+    },
+    point
+  );
+  assert(writes === 1, "writeDataPoint is attempted");
+  metrics.writeMetric(undefined, point);
+  assert(true, "a missing Analytics Engine binding does not throw");
+
+  const mapPoint = await mapMetrics.mapDataPoint(
+    {
+      mapper: "llm",
+      mapping: {
+        ssn: { from: "secrets.ssn", confidence: 1, why: "the national identifier" },
+        name: { from: "name", confidence: 1, why: "same name" },
+      },
+      unmapped: ["ssn"],
+    },
+    { source: { origin: "https://crm.example" }, target: { origin: "https://hr.example" } }
+  );
+  const mapDump = JSON.stringify(mapPoint);
+  assert(!mapDump.includes("ssn"), "unmapped field names do not enter Analytics Engine");
+  assert(!mapDump.includes("secrets"), "source paths do not enter Analytics Engine");
+  assert(!mapDump.includes("national identifier"), "why-text does not enter Analytics Engine");
+  assert(!mapDump.includes("crm.example") && !mapDump.includes("hr.example"), "raw mapper origins do not enter Analytics Engine");
+  assert(mapPoint.blobs[0] === "llm" && mapPoint.blobs[2] === "partial", "a partial match is named, not silent");
+  assert(mapPoint.doubles[1] === 1, "unmapped count is a double, not a list of names");
+}
+
+/**
+ * REVIEW.md G2 / G10. Deploy is an explicit list of product members. A
+ * recursive `pnpm run -r deploy` would publish the hostile stub. Custom
+ * domains and env.production exist so the story is a live demo, not localhost.
+ */
+function assertDeploy() {
+  const deploy = read(join(ROOT, "scripts/deploy.mjs"));
+  const hostilePkg = read(join(ROOT, "apps/hostile-stub/package.json"));
+  const rootPkg = read(join(ROOT, "package.json"));
+  const gwWrangler = read(join(ROOT, "hub/gateway/wrangler.jsonc"));
+  const mapperWrangler = read(join(ROOT, "hub/mapper/wrangler.jsonc"));
+  const surfaceWrangler = read(join(ROOT, "hub/surface/wrangler.jsonc"));
+  const ci = read(join(ROOT, "../.github/workflows/check.yml"));
+  const topology = read(join(ROOT, "docs/topology.md"));
+
+  const deployCode = stripComments(deploy);
+  assert(/TARGETS/.test(deploy), "deploy script enumerates targets");
+  assert(!/hostile-stub/.test(deployCode), "deploy TARGETS do not include the hostile stub");
+  assert(!/run -r deploy|pnpm -r|--recursive/.test(deployCode), "deploy is not a recursive glob");
+  assert(!/"deploy"\s*:/.test(hostilePkg), "hostile stub has no deploy script");
+  assert(/"deploy"\s*:\s*"node scripts\/deploy.mjs"/.test(rootPkg), "root deploy script is the explicit enumerator");
+  assert(/hub\/gateway/.test(deploy) && /hub\/mapper/.test(deploy) && /hub\/surface/.test(deploy), "deploy includes gateway, mapper, surface");
+  assert(/stub-crm/.test(deploy) && /stub-invoicing/.test(deploy) && /stub-notes/.test(deploy), "deploy includes the three demo spokes");
+
+  assert(/"env"\s*:\s*\{/.test(gwWrangler) && /"production"\s*:/.test(gwWrangler), "gateway has env.production");
+  assert(/custom_domain/.test(gwWrangler), "gateway production uses custom_domain");
+  assert(/custom_domain/.test(mapperWrangler) && /custom_domain/.test(surfaceWrangler), "mapper and surface production use custom_domain");
+  assert(/hub\.example\.com/.test(gwWrangler), "gateway custom domain is hub.<zone>");
+  assert(!/custom_domain/.test(read(join(ROOT, "apps/hostile-stub/wrangler.jsonc"))), "hostile stub has no production route");
+
+  assert(/pnpm deploy/.test(ci) && /CONNECTOME_ZONE/.test(ci), "CI has a production deploy job gated on CONNECTOME_ZONE");
+  assert(/hub\.<zone>/.test(topology) && /SameSite/.test(topology), "topology doc names hostnames and SameSite");
+  assert(/hostile/.test(topology) && /not include/i.test(topology) || /Not deployed/.test(topology), "topology doc says the hostile stub is not deployed");
+
+  assert(/vitest run/.test(rootPkg), "pnpm check / test runs the workerd suite");
+  assert(
+    exists(join(ROOT, "hub/gateway/test")) && exists(join(ROOT, "hub/mapper/test")),
+    "gateway and mapper have a vitest-pool-workers test directory"
+  );
+}
+
+function exists(p) {
+  try {
+    statSync(p);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function assertNode20Harness() {
+  const src = read(join(ROOT, "ci/provide-context.mjs"));
+  assert(
+    /typeof globalThis\.navigator === "undefined"/.test(src) || /navigator = \{\}/.test(src),
+    "provide-context stubs navigator so pnpm check runs on Node 20"
+  );
+  const pkg = JSON.parse(read(join(ROOT, "package.json")));
+  assert(pkg.engines?.node, "package.json declares an engines.node floor");
+}
+
 function assertSurfaceOnlyInvoke() {
   const doSrc = read(join(ROOT, "hub/gateway/src/hub-do.js"));
   const bridge = read(join(ROOT, "packages/bridge/bridge.js"));
@@ -704,6 +1021,9 @@ assertStubsExecute();
 assertJoinDoor();
 await assertPairing();
 assertSurfaceOnlyInvoke();
+await assertHardening();
+assertDeploy();
+assertNode20Harness();
 
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

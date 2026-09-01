@@ -7,5 +7,17 @@
   "assets": {
     "directory": "./public",
     "not_found_handling": "single-page-application"
+  },
+
+  "env": {
+    "production": {
+      "name": "stub-notes",
+      "workers_dev": false,
+      "routes": [{ "pattern": "tick.example.com", "custom_domain": true }],
+      "assets": {
+        "directory": "./public",
+        "not_found_handling": "single-page-application"
+      }
+    }
   }
 }

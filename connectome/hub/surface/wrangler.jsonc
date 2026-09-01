@@ -5,6 +5,18 @@
   "assets": {
     "directory": "./public",
     "not_found_handling": "single-page-application"
+  },
+
+  "env": {
+    "production": {
+      "name": "surface",
+      "workers_dev": false,
+      "routes": [{ "pattern": "surface.example.com", "custom_domain": true }],
+      "assets": {
+        "directory": "./public",
+        "not_found_handling": "single-page-application"
+      }
+    }
   }
 
   // Permissions-Policy: tools=() is set on responses via public/_headers

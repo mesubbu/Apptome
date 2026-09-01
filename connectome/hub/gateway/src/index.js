@@ -24,6 +24,8 @@ import {
   pairingConfigured,
   verifyTurnstile,
 } from "./pairing.js";
+import { fetchManifest } from "./manifest.js";
+import { enforceLimit, limitKey } from "./limits.js";
 
 import protocolSrc from "./vendor/protocol.js.txt";
 import bridgeSrc from "./vendor/bridge.js.txt";
@@ -76,6 +78,8 @@ export default {
       if (request.method === "OPTIONS") return apiPreflight(request, env);
       const denied = hubJoinDenied(request, env);
       if (denied) return denied;
+      const limited = await enforceLimit(env, await limitKey(env, request));
+      if (limited) return withCors(request, limited, env);
       if (request.headers.get("Upgrade") !== "websocket") {
         return new Response("expected websocket", { status: 426 });
       }
@@ -93,8 +97,21 @@ export default {
       // The pairing door itself. It must be reachable BEFORE a connectome id
       // exists, so it is handled ahead of every id-gated route below.
       if (url.pathname === "/api/pair") {
+        // POST mints an id. Tighter bucket, keyed by Origin — there is no
+        // connectome id yet, and CF-Connecting-IP is never the key (G6).
+        if (request.method === "POST") {
+          const origin = request.headers.get("Origin") || "anon";
+          const limited = await enforceLimit(env, origin, "PAIR_LIMIT");
+          if (limited) return withCors(request, limited, env);
+        } else {
+          const limited = await enforceLimit(env, await limitKey(env, request));
+          if (limited) return withCors(request, limited, env);
+        }
         return withCors(request, await pairRoute(request, env), env);
       }
+
+      const limited = await enforceLimit(env, await limitKey(env, request));
+      if (limited) return withCors(request, limited, env);
 
       if (url.pathname === "/api/declare" && request.method === "POST") {
         const stub = await hub(env, request);
@@ -104,7 +121,7 @@ export default {
         if (body?.identity && body?.origin) {
           found = { ok: true, record: body };
         } else {
-          found = await fetchManifest(body?.origin);
+          found = await fetchManifest(body?.origin, env);
         }
         if (!found.ok) {
           return withCors(request, json({ ok: false, error: found.error }, found.status), env);
@@ -296,78 +313,4 @@ function json(body, status = 200) {
     status,
     headers: { "content-type": "application/json" },
   });
-}
-
-/**
- * T4.3: user typed an origin. We fetch its poster. We do not invent a name.
- * credentials omitted — this is a public well-known file, not a session.
- */
-async function fetchManifest(originRaw) {
-  let origin;
-  try {
-    origin = new URL(String(originRaw ?? "")).origin;
-  } catch {
-    return { ok: false, status: 400, error: "that is not an origin" };
-  }
-  if (!/^https?:$/.test(new URL(origin).protocol)) {
-    return { ok: false, status: 400, error: "origin must be http or https" };
-  }
-  let res;
-  try {
-    res = await fetch(new URL("/.well-known/connectome.json", origin), { redirect: "error" });
-  } catch {
-    return {
-      ok: false,
-      status: 404,
-      error: "no connectome.json at that origin — we don't invent a name",
-    };
-  }
-  if (!res.ok) {
-    return {
-      ok: false,
-      status: 404,
-      error: "no connectome.json at that origin — we don't invent a name",
-    };
-  }
-  let jsonBody;
-  try {
-    jsonBody = await res.json();
-  } catch {
-    return { ok: false, status: 400, error: "that origin published something that is not a manifest" };
-  }
-  return {
-    ok: true,
-    record: {
-      origin,
-      identity: {
-        name: typeof jsonBody.name === "string" ? jsonBody.name.slice(0, 60) : null,
-        icon: typeof jsonBody.icon === "string" ? jsonBody.icon.slice(0, 300) : null,
-        launch: sameOriginOnly(jsonBody.launch, origin),
-      },
-      capabilities: posterCapabilities(jsonBody.capabilities),
-    },
-  };
-}
-
-function sameOriginOnly(url, origin) {
-  try {
-    const u = new URL(url, origin);
-    return u.origin === origin ? u.toString() : null;
-  } catch {
-    return null;
-  }
-}
-
-function posterCapabilities(list) {
-  if (!Array.isArray(list)) return [];
-  return list
-    .slice(0, 50)
-    .map((c) => ({
-      name: String(c?.name ?? ""),
-      description: String(c?.summary ?? c?.description ?? ""),
-      inputSchema: { type: "object", properties: {} },
-      readOnly: c?.write === false,
-      untrusted: false,
-    }))
-    .filter((c) => c.name);
 }

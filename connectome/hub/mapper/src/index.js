@@ -19,6 +19,8 @@
 import { assertNoValues } from "../../../packages/protocol/protocol.js";
 import { map as staticMap } from "./static-mapper.js";
 import { map as llmMap } from "./llm-mapper.js";
+import { enforceLimit, limitKey } from "./limits.js";
+import { emitMapMetric } from "./metrics.js";
 
 /**
  * The one origin allowed to ask for a mapping. Environment-driven, so the same
@@ -54,6 +56,12 @@ export default {
     if (url.pathname === "/map" && request.method === "POST") {
       const denied = corsDenied(request, env);
       if (denied) return denied;
+      const limited = await enforceLimit(env, limitKey(request));
+      if (limited) {
+        const headers = new Headers(limited.headers);
+        for (const [k, v] of Object.entries(corsHeaders(env))) headers.set(k, v);
+        return new Response(limited.body, { status: limited.status, headers });
+      }
       return handleMap(request, env);
     }
 
@@ -83,6 +91,11 @@ async function handleMap(request, env) {
   // it touches env.AI. Two independent asserts, because the one that matters is
   // the one living in the same file as the model call.
   const result = (await llmMap(req, env)) ?? (await staticMap(req, env));
+  try {
+    await emitMapMetric(env, result, req);
+  } catch {
+    /* a down dataset must not fail a mapping */
+  }
   return json(result, 200, env);
 }
 

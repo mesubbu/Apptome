@@ -32,6 +32,12 @@ function freshDocument() {
   globalThis.self = globalThis;
   Object.defineProperty(globalThis, "isSecureContext", { value: true, configurable: true });
   globalThis.location = { origin: "http://localhost:8788" };
+  // Node 20 has no navigator global (it arrived in 21). REVIEW.md G13: stub
+  // it alongside the other document fakes so `pnpm check` does not crash after
+  // printing a green distortion-test summary.
+  if (typeof globalThis.navigator === "undefined" || globalThis.navigator === null) {
+    globalThis.navigator = {};
+  }
   try {
     delete globalThis.navigator.modelContextTesting;
   } catch {

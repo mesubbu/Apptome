@@ -46,7 +46,16 @@ Hostile fake UI lives at http://localhost:8793 when that stub is running. It is 
 pnpm check
 ```
 
-Static distortion tests (`GrokVision.md` §8) plus a `provideContext` harness. Needs no mesh.
+Static distortion tests (`GrokVision.md` §8), a `provideContext` harness, and a `vitest-pool-workers` suite that executes the gateway, HubDO, and mapper inside workerd. Needs no mesh.
+
+## Production
+
+Hostnames, pairing secrets, and the explicit deploy list (the hostile stub is not on it) live in `docs/topology.md`.
+
+```bash
+export CONNECTOME_ZONE=example.com
+pnpm deploy
+```
 
 ## What not to add
 

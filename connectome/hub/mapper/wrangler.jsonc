@@ -34,6 +34,40 @@
     // AI Gateway gives caching, rate limits and logs for the mapper calls.
     "AI_GATEWAY": "connectome-mapper",
     "AI_MODEL": "@cf/meta/llama-3.1-8b-instruct"
+  },
+
+  // REVIEW.md G6. POST /map is a compute door the moment Workers AI is bound.
+  // Keyed by the surface Origin (the mapper never sees the pairing cookie).
+  "ratelimits": [
+    {
+      "name": "RATE_LIMIT",
+      "namespace_id": "1003",
+      "simple": { "limit": 30, "period": 10 }
+    }
+  ],
+
+  // REVIEW.md G9. Per-edge match and refusal rates. Blobs are hashed origins
+  // and an outcome; never a field name, never a value.
+  "analytics_engine_datasets": [
+    { "binding": "METRICS", "dataset": "connectome-map" }
+  ],
+
+  "env": {
+    "production": {
+      "name": "mapper",
+      "workers_dev": false,
+      "routes": [{ "pattern": "map.example.com", "custom_domain": true }],
+      "vars": {
+        "SURFACE_ORIGIN": "https://surface.example.com",
+        "AI_GATEWAY": "connectome-mapper",
+        "AI_MODEL": "@cf/meta/llama-3.1-8b-instruct"
+      },
+      "ai": { "binding": "AI" },
+      "ratelimits": [
+        { "name": "RATE_LIMIT", "namespace_id": "1003", "simple": { "limit": 30, "period": 10 } }
+      ],
+      "analytics_engine_datasets": [{ "binding": "METRICS", "dataset": "connectome-map" }]
+    }
   }
 
   // §10: env.AI.run() is REQUEST-SCOPED. It runs because the user opened a

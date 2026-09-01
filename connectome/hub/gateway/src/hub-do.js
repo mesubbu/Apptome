@@ -33,6 +33,7 @@ import {
   failure,
 } from "./vendor/protocol.js";
 import { isAllowedOrigin, roleForOrigin } from "./origins.js";
+import { AUDIT_KEEP, auditWatermark, emitAuditMetric } from "./metrics.js";
 
 export class HubDO {
   constructor(ctx, env) {
@@ -531,7 +532,16 @@ export class HubDO {
     for (const s of this.sessions.values()) send(s.ws, { t: M.GRAPH, ...graph });
   }
 
-  /** Metadata only. Never args, never results. */
+  /**
+   * Metadata only. Never args, never results.
+   *
+   * Prune is INLINE, on insert. A DO alarm() that swept this table on a
+   * schedule is exactly the scheduler ci/distortion-tests.mjs bans, and
+   * correctly so (REVIEW.md G5). The watermark is a row id, not a clock.
+   *
+   * Analytics Engine is best-effort. A down dataset must not fail a relay
+   * (REVIEW.md G9). Blobs are hashed in emitAuditMetric — never the raw edge.
+   */
   #audit(kind, edge, outcome, bytes = 0) {
     this.sql.exec(
       "INSERT INTO audit (at,kind,edge,outcome,bytes) VALUES (?,?,?,?,?)",
@@ -541,6 +551,19 @@ export class HubDO {
       outcome,
       bytes
     );
+    this.#pruneAudit();
+    const pending = emitAuditMetric(this.env, String(this.ctx.id), kind, edge, outcome, bytes);
+    try {
+      this.ctx.waitUntil(pending);
+    } catch {
+      void pending;
+    }
+  }
+
+  #pruneAudit() {
+    const row = this.sql.exec("SELECT MAX(id) AS m FROM audit").toArray()[0];
+    const watermark = auditWatermark(row?.m, AUDIT_KEEP);
+    if (watermark > 0) this.sql.exec("DELETE FROM audit WHERE id <= ?", watermark);
   }
 
   recentAudit(limit = 100) {

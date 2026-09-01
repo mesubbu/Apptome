@@ -6,13 +6,19 @@
  * typeface stack no product ships as its brand face, and a permanent footer that
  * says whose panel this is. It should read as "a different thing, attached to
  * this window" at a glance, from across a room.
+ *
+ * KimiPlan.md: color is a language. Five semantic colors, each with one
+ * meaning, everywhere: blue = read/from-an-app, green = you-typed/success,
+ * violet = mapper-proposed, red = write-risk/missing/failure, amber =
+ * untrusted/paused. Semantic hues are fixed and never follow the mark's
+ * --hue; the chrome accent still does.
  */
 
 :root {
   --hue: 212;
   --ink: #0f1115;
   --ink-2: #3d4450;
-  --ink-3: #767f8c;
+  --ink-3: #5b6470;
   --line: #e3e6ea;
   --bg: #ffffff;
   --bg-2: #f6f7f9;
@@ -21,7 +27,38 @@
   --ok: #0d7a45;
   --bad: #b42318;
   --warn: #8a5a00;
+
+  /* Semantic layer — meaning, not brand (KimiPlan §3.2) */
+  --read: #2563eb;
+  --read-soft: #eaf1fe;
+  --typed: #0d7a45;
+  --typed-soft: #edf9f2;
+  --mapped: #7c3aed;
+  --mapped-soft: #f3effe;
+  --risk: #b42318;
+  --risk-soft: #fef3f2;
+  --warn2: #8a5a00;
+  --warn-soft: #fff6e6;
+
+  /* Spacing scale (4px grid) */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 24px;
+
   --radius: 8px;
+  --radius-lg: 12px;
+  --radius-pill: 999px;
+
+  /* Elevation — whisper-quiet; this is a consent surface */
+  --elev-1: 0 1px 2px rgb(15 17 21 / 0.06);
+
+  /* Motion */
+  --t-fast: 120ms;
+  --t-view: 150ms;
+  --ease: cubic-bezier(0.2, 0.7, 0.3, 1);
+
   color-scheme: light;
 }
 
@@ -42,6 +79,23 @@ body {
   color: var(--ink);
   font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Universal, unmistakable focus. Accent = the user's mark hue. */
+:is(
+  .member-card,
+  .cap,
+  .btn,
+  .ghost,
+  .brand-name,
+  .back,
+  .search,
+  .add-app-input,
+  .field-input,
+  .scope-select
+):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 /* ---------- header ---------- */
@@ -83,11 +137,16 @@ body {
 .brand-name {
   background: none;
   border: 0;
-  padding: 0;
+  padding: 4px 2px;
   color: #fff;
   font: 600 13px/1 inherit;
   letter-spacing: 0.02em;
   cursor: pointer;
+}
+
+.brand-name:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .chrome-actions {
@@ -100,7 +159,7 @@ body {
   background: rgba(255, 255, 255, 0.1);
   border: 0;
   color: #fff;
-  padding: 5px 9px;
+  padding: 7px 11px;
   border-radius: 5px;
   font: 500 11.5px/1 inherit;
   cursor: pointer;
@@ -114,10 +173,16 @@ body {
   background: var(--bad);
 }
 
+.ghost:focus-visible {
+  outline-color: #fff;
+}
+
 .close {
   font-size: 15px;
   line-height: 1;
-  padding: 4px 8px;
+  padding: 6px 8px;
+  min-width: 28px;
+  min-height: 28px;
 }
 
 /* ---------- rooted-in bar ---------- */
@@ -157,15 +222,16 @@ body {
   border: 1px solid var(--line);
   background: #fff;
   border-radius: 999px;
-  padding: 2px 7px;
+  padding: 3px 8px;
 }
 
 .banner {
-  padding: 8px 12px;
-  background: #fff4ed;
-  border-bottom: 1px solid #f3d5c0;
-  color: var(--warn);
+  padding: 10px 12px;
+  background: var(--warn-soft);
+  border-bottom: 1px solid #ecd9b0;
+  color: var(--warn2);
   font-size: 12.5px;
+  font-weight: 550;
   flex: none;
 }
 
@@ -178,6 +244,7 @@ body {
 
 .search {
   width: 100%;
+  min-height: 36px;
   padding: 8px 10px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -197,12 +264,66 @@ body {
   flex: 1;
   overflow-y: auto;
   padding: 8px 12px 16px;
+  scroll-padding-bottom: 64px;
 }
 
 .stack {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.muted {
+  color: var(--ink-3);
+  font-size: 12.5px;
+  margin: 6px 0 0;
+}
+
+/* Quiet textual "‹ Back" — orientation aid, not a state machine change. */
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: fit-content;
+  background: none;
+  border: 0;
+  padding: 4px 8px 4px 0;
+  color: var(--ink-3);
+  font: 600 12px inherit;
+  cursor: pointer;
+}
+
+.back:hover {
+  color: var(--accent);
+}
+
+/* Step chips: pure orientation, never navigation. */
+.steps {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 2px;
+}
+
+.step {
+  font: 650 10.5px/1 inherit;
+  padding: 5px 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line);
+  background: var(--bg-2);
+  color: var(--ink-3);
+}
+
+.step.done {
+  color: var(--ok);
+  border-color: #bfe6ce;
+  background: var(--typed-soft);
+}
+
+.step.now {
+  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
 }
 
 .crumb {
@@ -213,7 +334,7 @@ body {
 
 .crumb-title {
   font-weight: 650;
-  font-size: 15px;
+  font-size: 16px;
 }
 
 .crumb-sub {
@@ -230,7 +351,7 @@ body {
 .p {
   margin: 0 0 6px;
   color: var(--ink-2);
-  font-size: 12.5px;
+  font-size: 13px;
 }
 
 .p:last-child {
@@ -238,11 +359,22 @@ body {
 }
 
 .empty {
-  padding: 20px 14px;
+  padding: 24px 14px;
   text-align: center;
   border: 1px dashed var(--line);
   border-radius: var(--radius);
   color: var(--ink-2);
+}
+
+/* Dashed-circle pictogram; CSS-drawn, no assets, not an app's content. */
+.empty::before {
+  content: "";
+  display: block;
+  width: 28px;
+  height: 28px;
+  margin: 0 auto 10px;
+  border-radius: 50%;
+  border: 2px dashed var(--line);
 }
 
 .notice {
@@ -258,7 +390,7 @@ body {
 }
 
 .notice.bad {
-  background: #fef3f2;
+  background: var(--risk-soft);
   border-color: #f2c9c4;
 }
 
@@ -269,7 +401,8 @@ body {
   align-items: center;
   gap: 10px;
   width: 100%;
-  padding: 10px;
+  min-height: 52px;
+  padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: #fff;
@@ -283,16 +416,19 @@ body {
   background: var(--accent-soft);
 }
 
+/* Every app gets a face: deterministic per-origin hue, set inline from JS. */
 .member-icon {
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   flex: none;
-  border-radius: 7px;
+  border-radius: 8px;
   background: var(--ink);
+  background: hsl(var(--app-hue, 212) 55% 38%);
   color: #fff;
   font-weight: 650;
+  font-size: 15px;
 }
 
 .member-text {
@@ -304,6 +440,7 @@ body {
 
 .member-name {
   font-weight: 600;
+  font-size: 14px;
 }
 
 /* The origin is never optional. It is the identity; the name is only a label. */
@@ -323,11 +460,20 @@ body {
   font-size: 11px;
 }
 
+.presence-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  flex: none;
+}
+
 .presence {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   flex: none;
   border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--bg);
 }
 
 .presence.on {
@@ -336,6 +482,17 @@ body {
 
 .presence.off {
   background: #cbd1d9;
+}
+
+/* Presence is readable without hovering the dot. */
+.presence-label {
+  font-size: 10.5px;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.presence-wrap:has(.presence.on) .presence-label {
+  color: var(--ok);
 }
 
 .add-app {
@@ -361,6 +518,7 @@ body {
 .add-app-input {
   flex: 1;
   min-width: 0;
+  min-height: 36px;
   padding: 8px 10px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -380,8 +538,10 @@ body {
   flex-direction: column;
   gap: 3px;
   width: 100%;
-  padding: 10px;
+  min-height: 48px;
+  padding: 10px 12px;
   border: 1px solid var(--line);
+  border-left: 3px solid var(--read);
   border-radius: var(--radius);
   background: #fff;
   text-align: left;
@@ -389,9 +549,23 @@ body {
   font: inherit;
 }
 
+/* Writes are visually hotter on purpose (Frontend-handoff §7). */
+.cap.write {
+  border-left-color: var(--risk);
+}
+
 .cap:hover:not(:disabled) {
-  border-color: var(--accent);
-  background: var(--accent-soft);
+  border-color: var(--read);
+}
+
+.cap.read:hover:not(:disabled) {
+  background: var(--read-soft);
+  border-color: var(--read);
+}
+
+.cap.write:hover:not(:disabled) {
+  background: var(--risk-soft);
+  border-color: var(--risk);
 }
 
 .cap:disabled {
@@ -412,30 +586,30 @@ body {
 
 .cap-desc {
   color: var(--ink-2);
-  font-size: 12.5px;
+  font-size: 13px;
 }
 
 .badge {
-  font: 600 9.5px/1 inherit;
+  font: 700 10px/1 inherit;
   text-transform: uppercase;
-  letter-spacing: 0.07em;
-  padding: 3px 6px;
+  letter-spacing: 0.06em;
+  padding: 3px 7px;
   border-radius: 4px;
 }
 
 .badge.read {
-  background: #eef2f7;
-  color: var(--ink-2);
+  background: var(--read-soft);
+  color: var(--read);
 }
 
 .badge.write {
-  background: #fdeeec;
-  color: var(--bad);
+  background: var(--risk-soft);
+  color: var(--risk);
 }
 
 .badge.untrusted {
-  background: #fff4e0;
-  color: var(--warn);
+  background: var(--warn-soft);
+  color: var(--warn2);
 }
 
 .badge.req {
@@ -474,7 +648,8 @@ body {
 }
 
 .field-input {
-  padding: 7px 9px;
+  padding: 8px 10px;
+  min-height: 36px;
   border: 1px solid var(--line);
   border-radius: 6px;
   font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -486,6 +661,12 @@ body {
   outline-offset: -1px;
 }
 
+/* Validation points AT the field, not just at a list far away. */
+.field-input[aria-invalid="true"] {
+  border-color: var(--risk);
+  background: var(--risk-soft);
+}
+
 /* Provenance is the point, so it is never subtle. */
 .prov {
   display: flex;
@@ -494,61 +675,111 @@ body {
 }
 
 .prov-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 10.5px;
-  padding: 2px 6px;
+  font-weight: 550;
+  padding: 3px 7px;
   border-radius: 4px;
   background: #eef2f7;
   color: var(--ink-2);
 }
 
+/* Values trace back to their source app by colour: dot hue = app's avatar hue. */
 .prov-tag.read {
-  background: #eaf3ff;
-  color: #17457a;
+  background: var(--read-soft);
+  color: var(--read);
+}
+
+.prov-tag.read::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: hsl(var(--app-hue, 212) 55% 42%);
 }
 
 .prov-tag.typed {
-  background: #f0faf4;
-  color: var(--ok);
+  background: var(--typed-soft);
+  color: var(--typed);
+}
+
+.prov-tag.mapped {
+  background: var(--mapped-soft);
+  color: var(--mapped);
+}
+
+.prov-tag.constant {
+  background: var(--bg-2);
+  color: var(--ink-2);
 }
 
 .prov-tag.missing {
-  background: #fdeeec;
-  color: var(--bad);
+  background: var(--risk-soft);
+  color: var(--risk);
+  border: 1px dashed rgb(180 35 24 / 0.5);
 }
 
 .prov-tag.untrusted {
-  background: #fff4e0;
-  color: var(--warn);
-  font-weight: 600;
+  background: var(--warn-soft);
+  color: var(--warn2);
+  font-weight: 700;
+}
+
+/* Our constant glyph, CSS-painted — tag textContent stays byte-identical. */
+.prov-tag.untrusted::before {
+  content: "⚠";
 }
 
 /* ---------- json ---------- */
 
+/* Machine truth looks like machine truth: the panel's own dark material. */
 .json {
-  border: 1px solid var(--line);
+  border: 1px solid #262c36;
   border-radius: var(--radius);
   overflow: hidden;
+  background: var(--ink);
 }
 
 .json-head {
-  padding: 6px 10px;
-  background: var(--bg-2);
-  border-bottom: 1px solid var(--line);
-  font: 600 10.5px/1 inherit;
+  padding: 7px 12px;
+  background: #171b21;
+  border-bottom: 1px solid #262c36;
+  font: 700 10px/1 inherit;
   text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--ink-2);
+  letter-spacing: 0.08em;
+  color: #9aa4b2;
 }
 
 .json-body {
   margin: 0;
-  padding: 10px;
-  font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+  padding: 12px;
+  font: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
   white-space: pre-wrap;
   word-break: break-word;
-  background: #fbfcfd;
+  color: #dbe2ec;
   max-height: 260px;
   overflow: auto;
+}
+
+/* Syntax tokens — same characters, colored. textContent is byte-identical. */
+.tok-key {
+  color: hsl(var(--hue) 80% 74%);
+}
+
+.tok-str {
+  color: #8fd9a8;
+}
+
+.tok-num {
+  color: #f0b45f;
+}
+
+.tok-bool,
+.tok-null {
+  color: #c9a8f5;
 }
 
 .problems {
@@ -560,9 +791,28 @@ body {
 .problem {
   padding: 6px 9px;
   border-radius: 6px;
-  background: #fef3f2;
-  color: var(--bad);
+  background: var(--risk-soft);
+  color: var(--risk);
   font-size: 12px;
+}
+
+/* The decision never scrolls away on long schemas. */
+.confirm-actions {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 0 4px;
+  margin-top: 4px;
+  background: var(--bg);
+  border-top: 1px solid var(--line);
+}
+
+.confirm-actions .btn.primary {
+  flex: 1 1 auto;
+  min-height: 42px;
+  font-size: 13.5px;
 }
 
 /* ---------- buttons, rows ---------- */
@@ -579,6 +829,7 @@ body {
 }
 
 .btn {
+  min-height: 36px;
   padding: 8px 12px;
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -610,6 +861,7 @@ body {
 }
 
 .btn.small {
+  min-height: 30px;
   padding: 5px 9px;
   font-size: 11.5px;
 }
@@ -623,11 +875,89 @@ body {
 
 .scope-select {
   width: 100%;
+  min-height: 36px;
   padding: 7px 8px;
   border: 1px solid var(--line);
   border-radius: 6px;
   font: inherit;
   background: #fff;
+}
+
+/* ---------- result / failure marks ---------- */
+
+/* CSS-drawn shapes; no images, no app-supplied content. */
+.result-mark {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  margin: 2px 0 6px;
+  border-radius: 50%;
+  background: var(--typed-soft);
+  border: 2px solid var(--typed);
+}
+
+.result-mark::after {
+  content: "";
+  position: absolute;
+  left: 13px;
+  top: 9px;
+  width: 8px;
+  height: 14px;
+  border: solid var(--typed);
+  border-width: 0 3px 3px 0;
+  transform: rotate(45deg);
+}
+
+.result-mark.bad {
+  background: var(--risk-soft);
+  border-color: var(--risk);
+}
+
+.result-mark.bad::after {
+  left: 50%;
+  top: 7px;
+  width: 3px;
+  height: 15px;
+  border: 0;
+  border-radius: 2px;
+  background: var(--risk);
+  transform: translateX(-50%);
+}
+
+.result-mark.bad::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 6px;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--risk);
+  transform: translateX(-50%);
+}
+
+/* The product promise, visible: you never left your app. */
+.locus {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  padding: 5px 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line);
+  background: var(--bg-2);
+  color: var(--ink-2);
+  font-size: 11.5px;
+  word-break: break-all;
+}
+
+.locus::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: hsl(var(--app-hue, 212) 55% 42%);
 }
 
 /* ---------- grants ---------- */
@@ -636,6 +966,7 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-height: 44px;
   padding: 9px 10px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -666,4 +997,58 @@ body {
   background: var(--bg-2);
   color: var(--ink-3);
   font-size: 10.5px;
+}
+
+/* ---------- motion ----------
+ * Small and guarded (KimiPlan §4.4 / Frontend-handoff §11, §15.5).
+ * Nothing here ever delays the confirm JSON or the Approve button: the
+ * animation wraps the whole view once for 150ms and then it is done.
+ */
+
+@media (prefers-reduced-motion: no-preference) {
+  .body > * {
+    animation: view-in var(--t-view) var(--ease);
+  }
+
+  @keyframes view-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  .presence.on {
+    animation: presence-pulse 2.4s ease-out infinite;
+  }
+
+  @keyframes presence-pulse {
+    0%,
+    100% {
+      box-shadow: 0 0 0 2px var(--bg), 0 0 0 2px rgb(13 122 69 / 0.35);
+    }
+    50% {
+      box-shadow: 0 0 0 2px var(--bg), 0 0 0 6px rgb(13 122 69 / 0);
+    }
+  }
+
+  .member-card,
+  .cap,
+  .btn,
+  .ghost {
+    transition:
+      border-color var(--t-fast) var(--ease),
+      background var(--t-fast) var(--ease),
+      transform var(--t-fast) var(--ease),
+      box-shadow var(--t-fast) var(--ease);
+  }
+
+  .member-card:hover,
+  .cap:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: var(--elev-1);
+  }
 }
