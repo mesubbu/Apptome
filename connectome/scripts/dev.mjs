@@ -10,16 +10,33 @@ import net from "node:net";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { resolveEnv } from "./build-env.mjs";
+
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const wrangler = resolve(root, "node_modules/.bin/wrangler");
+
+/**
+ * The same resolved mesh the static assets were just built against. Deriving the
+ * Workers' runtime vars from `resolveEnv()` rather than restating them is what
+ * stops the join door and the boot tags from drifting apart: if a spoke's tag
+ * points somewhere the allowlist does not name, the mesh fails the join at T1.5
+ * and the cause is two lists, not one bug.
+ */
+const mesh = resolveEnv();
+
+/** Only Workers with a `main` take vars. The stubs and surface are assets-only. */
+const WORKER_VARS = [
+  `SURFACE_ORIGIN:${mesh.surface}`,
+  `ALLOWED_ORIGINS:${mesh.spokes.join(",")}`,
+];
 
 const SERVICES = [
   { name: "CRM", dir: "apps/stub-crm", port: 8787 },
   { name: "Ledger", dir: "apps/stub-invoicing", port: 8788 },
   { name: "Tick", dir: "apps/stub-notes", port: 8789 },
   { name: "Surface", dir: "hub/surface", port: 8790 },
-  { name: "Gateway", dir: "hub/gateway", port: 8791 },
-  { name: "Mapper", dir: "hub/mapper", port: 8792 },
+  { name: "Gateway", dir: "hub/gateway", port: 8791, vars: WORKER_VARS },
+  { name: "Mapper", dir: "hub/mapper", port: 8792, vars: WORKER_VARS },
 ];
 
 const children = [];
@@ -33,10 +50,12 @@ printBanner();
 await hangUntilSignal();
 
 async function sync() {
-  const code = await run(process.execPath, [resolve(root, "scripts/sync-bridge.mjs")], root);
-  if (code !== 0) {
-    console.error("pnpm sync failed; not starting the mesh.");
-    process.exit(code || 1);
+  for (const step of ["scripts/sync-bridge.mjs", "scripts/build-env.mjs"]) {
+    const code = await run(process.execPath, [resolve(root, step)], root);
+    if (code !== 0) {
+      console.error(`${step} failed; not starting the mesh.`);
+      process.exit(code || 1);
+    }
   }
 }
 
@@ -54,9 +73,17 @@ async function assertPortsFree() {
 async function startAll() {
   for (const svc of SERVICES) {
     // wrangler's inspector defaults to 9229. Six procs cannot share it.
+    const varArgs = (svc.vars ?? []).flatMap((pair) => ["--var", pair]);
     const child = spawn(
       wrangler,
-      ["dev", "--port", String(svc.port), "--inspector-port", String(svc.port + 1000)],
+      [
+        "dev",
+        "--port",
+        String(svc.port),
+        "--inspector-port",
+        String(svc.port + 1000),
+        ...varArgs,
+      ],
       {
         cwd: resolve(root, svc.dir),
         stdio: "inherit",

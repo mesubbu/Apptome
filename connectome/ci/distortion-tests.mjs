@@ -7,7 +7,7 @@
  */
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, extname, join, relative, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 let failed = 0;
@@ -260,23 +260,70 @@ function banHandlerCallback() {
   );
 }
 
-function assertOrigins() {
-  const origins = read(join(ROOT, "hub/gateway/src/origins.js"));
-  const surface = read(join(ROOT, "hub/surface/public/config.js"));
+/**
+ * The join door, asserted as BEHAVIOUR rather than as literal ports.
+ *
+ * This test used to require `origins.js` to contain the strings ":8787" and
+ * ":8790". Once the allowlist became env-driven those literals stopped being
+ * the allowlist and became merely its local-dev default, so pinning them tested
+ * nothing an operator could not silently break. What must hold on every
+ * deployment is the SHAPE: the vars are the source, the surface is always a
+ * member, the extension reaches /api/* and never /hub, and the hostile origin
+ * is not reachable by any configuration this module will accept.
+ *
+ * origins.js is pure — URL and Set, no Worker globals — so it can simply be
+ * imported and exercised. That is strictly stronger than grepping its text.
+ */
+async function assertOrigins() {
+  const src = read(join(ROOT, "hub/gateway/src/origins.js"));
   const bridge = read(join(ROOT, "packages/bridge/bridge.js"));
-  assert(origins.includes("http://localhost:8790"), "surface origin is :8790");
-  assert(origins.includes("http://localhost:8787"), "CRM origin is :8787");
-  assert(origins.includes("http://localhost:8788"), "Ledger origin is :8788");
-  assert(origins.includes("http://localhost:8789"), "Tick origin is :8789");
+  const config = read(join(ROOT, "hub/surface/public/config.js"));
+  const o = await import(pathToFileURL(join(ROOT, "hub/gateway/src/origins.js")).href);
+
+  // The allowlist is env-sourced, not a literal in the module.
+  assert(/env\?\.ALLOWED_ORIGINS/.test(src), "allowlist is built from env.ALLOWED_ORIGINS");
+  assert(/env\?\.SURFACE_ORIGIN/.test(src), "surface origin is built from env.SURFACE_ORIGIN");
+
+  // Unset vars still boot the local mesh: pnpm dev stays zero-config.
+  assert(o.isAllowedOrigin("http://localhost:8787", undefined), "default allowlist admits the CRM");
+  assert(o.isAllowedOrigin("http://localhost:8788", undefined), "default allowlist admits the Ledger");
+  assert(o.isAllowedOrigin("http://localhost:8789", undefined), "default allowlist admits Tick");
+  assert(o.isAllowedOrigin(o.DEFAULT_SURFACE_ORIGIN, undefined), "default allowlist admits the surface");
+  assert(o.roleForOrigin(o.DEFAULT_SURFACE_ORIGIN, undefined) === "surface", "default surface origin gets the surface role");
+
+  // The hostile stub is not a member, by default or by source.
+  assert(!o.isAllowedOrigin("http://localhost:8793", undefined), "hostile stub :8793 cannot join /hub");
+  assert(!o.isAllowedApiOrigin("http://localhost:8793", undefined), "hostile stub :8793 cannot reach /api/*");
+  assert(!src.includes("http://localhost:8793"), "hostile stub :8793 is not named in origins.js");
+
+  // Configured vars REPLACE the defaults. A production gateway must not carry
+  // localhost on its allowlist just because it inherited it.
+  const env = { ALLOWED_ORIGINS: "https://a.example, https://b.example", SURFACE_ORIGIN: "https://surface.example" };
+  assert(o.isAllowedOrigin("https://a.example", env), "configured allowlist admits its own origins");
+  assert(!o.isAllowedOrigin("http://localhost:8787", env), "configured allowlist drops the localhost defaults");
+  assert(o.isAllowedOrigin("https://surface.example", env), "surface is always on its own allowlist");
+  assert(o.roleForOrigin("https://surface.example", env) === "surface", "role is bound to the configured surface");
+  assert(o.roleForOrigin("https://a.example", env) === "spoke", "a spoke is not the surface");
+
+  // Junk is refused rather than admitted half-parsed.
+  assert(!o.isAllowedOrigin(null, env) && !o.isAllowedOrigin("", env), "a missing Origin is not allowed");
   assert(
-    /SURFACE_ORIGIN\s*=\s*"http:\/\/localhost:8790"/.test(origins),
-    "SURFACE_ORIGIN is not a stub origin"
+    !o.isAllowedOrigin("https://a.example", { ALLOWED_ORIGINS: "not a url" }),
+    "an unparseable allowlist entry does not admit anything"
   );
+
+  // T6.2: the extension is /api/* only, and pinned rather than configurable.
+  assert(!o.isAllowedOrigin(o.EXTENSION_ORIGIN, env), "extension origin cannot join /hub");
+  assert(o.isAllowedApiOrigin(o.EXTENSION_ORIGIN, env), "extension origin may reach /api/*");
   assert(
-    !origins.includes("http://localhost:8793"),
-    "hostile stub :8793 is not on the allowlist"
+    !/EXTENSION_ORIGIN\s*=[^;]*env/.test(src),
+    "extension origin is pinned in code, not taken from env"
   );
-  assert(surface.includes("http://localhost:8791"), "surface talks to gateway :8791");
+
+  // The surface's URLs are build-substituted, but EXT_ID stays pinned.
+  assert(/export const GATEWAY_URL =/.test(config) && /export const MAPPER_URL =/.test(config), "surface config exports the gateway and mapper URLs");
+  assert(/EXT_ID = "[a-z]{32}"/.test(config), "surface keeps the pinned extension id");
+
   assert(
     /frame\.src\s*=\s*url\.toString\(\)/.test(bridge) && /SURFACE_FRAME_ID/.test(bridge),
     "surface iframe is mounted from the hub surface URL, not the stub"
@@ -285,6 +332,31 @@ function assertOrigins() {
     /No `allow="tools"`/.test(bridge) || /allow", ""/.test(bridge) || /setAttribute\("allow", ""\)/.test(bridge),
     "surface iframe is not delegated tools"
   );
+}
+
+/**
+ * The boot tag is substituted per environment (scripts/build-env.mjs), so what
+ * CI can check is internal consistency: a tag whose `src` and `data-connectome-hub`
+ * disagree points the page at one gateway and the bridge at another, which fails
+ * at the join door with a message that blames the allowlist.
+ */
+function assertBootTags() {
+  let tagged = 0;
+  for (const file of walk(join(ROOT, "apps"))) {
+    if (!file.endsWith(".html")) continue;
+    const src = read(file);
+    const hub = src.match(/data-connectome-hub="([^"]*)"/)?.[1];
+    if (!hub) continue;
+    tagged += 1;
+    const boot = src.match(/src="([^"]*)\/\.webmcp\/boot\.js"/)?.[1];
+    assert(boot === hub, `${rel(file)}: boot.js src origin matches data-connectome-hub`);
+    assert(
+      /data-connectome-surface="[^"]+"/.test(src),
+      `${rel(file)}: boot tag names a surface origin`
+    );
+    assert(!file.includes("hostile-stub"), `${rel(file)}: hostile stub carries no boot tag`);
+  }
+  assert(tagged >= 3, `every stub app carries a boot tag (found ${tagged})`);
 }
 
 function assertWritePath() {
@@ -328,8 +400,11 @@ function assertJoinDoor() {
     "HubDO does not take identity from ?origin="
   );
   assert(/HELLO\.origin is a poster/.test(doSrc) || /session\.origin/.test(doSrc), "HELLO.origin is not identity");
-  assert(/roleForOrigin\(origin\)/.test(doSrc), "role is bound from Origin, not ?role=");
+  assert(/roleForOrigin\(origin,/.test(doSrc), "role is bound from Origin, not ?role=");
   assert(!origins.includes("http://localhost:8793"), "unlisted origin cannot join");
+  // env must reach the door, or the DO resolves a different allowlist than the
+  // gateway that routed to it and the two disagree about who is the surface.
+  assert(/isAllowedOrigin\(origin,\s*this\.env\)/.test(doSrc), "HubDO checks the Origin against env");
 }
 
 function assertSurfaceOnlyInvoke() {
@@ -359,7 +434,8 @@ banSurfaceParent();
 banSopBypass();
 banNavigatorModelContext();
 banHandlerCallback();
-assertOrigins();
+await assertOrigins();
+assertBootTags();
 assertWritePath();
 assertMapperGuard();
 assertStubsExecute();

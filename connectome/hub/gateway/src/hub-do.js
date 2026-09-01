@@ -368,11 +368,15 @@ export class HubDO {
   #acceptSocket(request, url) {
     const sessionId = url.searchParams.get("session");
     // Identity is the Origin header. ?origin= and ?role= are not authority (T1.5).
+    // The allowlist and the surface origin come from env, so the DO resolves the
+    // same door as the gateway that routed here rather than a second hardcoded one.
     const origin = request.headers.get("Origin");
     if (!sessionId) return new Response("session required", { status: 400 });
-    if (!isAllowedOrigin(origin)) return new Response("origin not allowed", { status: 403 });
+    if (!isAllowedOrigin(origin, this.env)) {
+      return new Response("origin not allowed", { status: 403 });
+    }
 
-    const role = roleForOrigin(origin);
+    const role = roleForOrigin(origin, this.env);
     const host = role === "surface" ? url.searchParams.get("host") || "" : "";
 
     const pair = new WebSocketPair();
