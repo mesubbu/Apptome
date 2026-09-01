@@ -12,7 +12,48 @@
   "durable_objects": {
     "bindings": [{ "name": "HUB", "class_name": "HubDO" }]
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["HubDO"] }]
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["HubDO"] }],
+
+  // ------------------------------------------------------------------
+  // PAIRING (src/pairing.js). A connectome is one user's own sessions, so the
+  // Durable Object must not be addressable by guessing its name.
+  //
+  // SECRETS — set with `wrangler secret put <NAME>`. NEVER add these to "vars":
+  // a var is plaintext in this file and therefore in git, and these two are the
+  // entire strength of the door.
+  //
+  //   TURNSTILE_SECRET   Server half of the Turnstile keypair. Only siteverify
+  //                      ever sees it; the widget's own result is not evidence.
+  //   PAIR_SECRET        HMAC-SHA256 key that signs minted connectome ids.
+  //                      Rotating it un-pairs every browser, which is the
+  //                      correct blast radius for a leak.
+  //
+  // Without either one the gateway refuses to mint, and every id-gated route
+  // answers 401 PAIRING_REQUIRED. It fails CLOSED: a half-configured deploy
+  // hands out nothing rather than handing out everything.
+  //
+  // PUBLIC, so these are vars rather than secrets:
+  //
+  //   TURNSTILE_SITE_KEY    Client half. It is rendered into the widget and is
+  //                         served to the surface by GET /api/pair.
+  //   ENVIRONMENT           "local" enables the unauthenticated ?cx= / header /
+  //                         "local-dev" fallback that `pnpm dev` relies on. Any
+  //                         other value — INCLUDING UNSET — is production and
+  //                         has no fallback. scripts/dev.mjs passes it.
+  //   PAIR_COOKIE_SAMESITE  Defaults to Lax, which is right when the hub, the
+  //                         surface and the spokes share one registrable
+  //                         domain. A genuinely cross-site mesh needs "None"
+  //                         and is then subject to third-party cookie blocking
+  //                         — which is why the extension transport exists.
+  //
+  // §10: Turnstile is request-scoped and human-present. It runs because someone
+  // clicked, it authorises addressing your own graph and nothing else, and it
+  // grants no write. It is not the "Global 'allow this agent'" that §10 rejects;
+  // per-edge consent is untouched and every write still confirms exact JSON.
+  // ------------------------------------------------------------------
+  "vars": {
+    "ENVIRONMENT": "production"
+  }
 
   // DELIBERATELY ABSENT, and CI enforces their absence (ci/distortion-tests.mjs):
   //

@@ -407,6 +407,109 @@ function assertJoinDoor() {
   assert(/isAllowedOrigin\(origin,\s*this\.env\)/.test(doSrc), "HubDO checks the Origin against env");
 }
 
+/**
+ * Pairing (REVIEW.md G1). The Origin allowlist says which SITES may knock; this
+ * says which GRAPH the knocker may open. Both are needed — an allowlisted origin
+ * guessing a Durable Object name was the takeover.
+ *
+ * pairing.js is pure (crypto.subtle, URL, TextEncoder — all present in Node 20+
+ * and in workerd), so the token itself is exercised rather than grepped.
+ */
+async function assertPairing() {
+  const gw = stripComments(read(join(ROOT, "hub/gateway/src/index.js")));
+  const src = read(join(ROOT, "hub/gateway/src/pairing.js"));
+  const code = stripComments(src);
+  const wrangler = read(join(ROOT, "hub/gateway/wrangler.jsonc"));
+  const p = await import(pathToFileURL(join(ROOT, "hub/gateway/src/pairing.js")).href);
+
+  // The unauthenticated inputs must not be readable outside a local-only branch.
+  // Not anchored on a receiver name: `new URL(request.url).searchParams.get("cx")`
+  // must be caught as surely as `url.searchParams.get("cx")`.
+  assert(!/searchParams\.get\(\s*["']cx["']\s*\)/.test(gw), "gateway does not read ?cx= directly");
+  assert(!/x-connectome-id/.test(gw.replace(/access-control-allow-headers[^\n]*/g, "")), "gateway does not read x-connectome-id directly");
+  assert(/await connectomeId\(env, request\)/.test(gw), "the DO name comes from connectomeId()");
+  assert(/isLocal\(env\)/.test(code), "the unauthenticated fallback is gated on isLocal(env)");
+
+  // Fails closed: unset ENVIRONMENT is production, not local.
+  assert(p.isLocal({ ENVIRONMENT: "local" }) === true, "ENVIRONMENT=local is local");
+  assert(p.isLocal({}) === false, "unset ENVIRONMENT is NOT local");
+  assert(p.isLocal(undefined) === false, "absent env is NOT local");
+  assert(p.isLocal({ ENVIRONMENT: "production" }) === false, "production is not local");
+
+  const env = { PAIR_SECRET: "unit-test-key", TURNSTILE_SECRET: "x" };
+  const token = await p.mintToken(env);
+  assert(typeof token === "string" && token.startsWith("v1."), "mintToken returns a versioned token");
+  assert((await p.verifyToken(env, token)) !== null, "a minted token verifies");
+
+  // Unguessable: 32 bytes of entropy, and two mints never collide.
+  const id = await p.verifyToken(env, token);
+  assert(id.length >= 40, `connectome id carries 32 bytes of entropy (got ${id.length} chars)`);
+  assert((await p.verifyToken(env, await p.mintToken(env))) !== id, "each pairing mints a fresh id");
+
+  // Unforgeable.
+  assert((await p.verifyToken(env, "v1.chosen-by-me.nope")) === null, "an invented token is refused");
+  assert((await p.verifyToken(env, `v1.${id}`)) === null, "an unsigned id is refused");
+  assert((await p.verifyToken(env, token.replace(/.$/, "A"))) === null, "a tampered signature is refused");
+  assert(
+    (await p.verifyToken({ PAIR_SECRET: "other-key" }, token)) === null,
+    "a token signed with another key is refused"
+  );
+  assert((await p.verifyToken({}, token)) === null, "no signing key means no token verifies");
+
+  // The door itself.
+  const req = (headers = {}) => new Request("https://hub.example/api/graph", { headers });
+  assert(
+    (await p.connectomeId({ ENVIRONMENT: "production" }, req({ cookie: "cx=guessed" }))) === null,
+    "production refuses an unsigned cookie"
+  );
+  assert(
+    (await p.connectomeId({ ENVIRONMENT: "production" }, req({ "x-connectome-id": "guessed" }))) === null,
+    "production refuses x-connectome-id"
+  );
+  assert(
+    (await p.connectomeId(
+      { ENVIRONMENT: "production" },
+      new Request("https://hub.example/api/graph?cx=guessed")
+    )) === null,
+    "production refuses ?cx="
+  );
+  assert(
+    (await p.connectomeId({ ENVIRONMENT: "production" }, req())) === null,
+    "production has no local-dev default"
+  );
+  assert(
+    (await p.connectomeId({ ENVIRONMENT: "local" }, req())) === "local-dev",
+    "local dev still resolves without pairing"
+  );
+  assert(
+    (await p.connectomeId({ ...env, ENVIRONMENT: "production" }, req({ cookie: `cx=${token}` }))) === id,
+    "a signed cookie opens the graph in production"
+  );
+
+  // Cookie hardening.
+  const cookie = p.pairCookie({ ...env, ENVIRONMENT: "production" }, token);
+  assert(/HttpOnly/.test(cookie), "pairing cookie is HttpOnly");
+  assert(/Secure/.test(cookie), "pairing cookie is Secure in production");
+  assert(/SameSite=Lax/.test(cookie), "pairing cookie defaults to SameSite=Lax");
+  assert(
+    /Secure/.test(p.pairCookie({ ...env, ENVIRONMENT: "local", PAIR_COOKIE_SAMESITE: "None" }, token)),
+    "SameSite=None always carries Secure, or the browser drops it"
+  );
+
+  // The secrets are secrets. A plaintext var would be in git.
+  const vars = wrangler.match(/"vars"\s*:\s*\{[^}]*\}/s)?.[0] ?? "";
+  assert(!/TURNSTILE_SECRET/.test(vars), "TURNSTILE_SECRET is not a plaintext var");
+  assert(!/PAIR_SECRET/.test(vars), "PAIR_SECRET is not a plaintext var");
+  assert(/wrangler secret put/.test(wrangler), "wrangler.jsonc says how to set the secrets");
+
+  // Turnstile is a pairing gate, not a standing permission (§10).
+  assert(
+    /challenges\.cloudflare\.com\/turnstile\/v0\/siteverify/.test(code),
+    "the challenge is verified server-side against siteverify"
+  );
+  assert(!/alarm\s*\(|scheduled\s*\(/.test(code), "pairing schedules nothing");
+}
+
 function assertSurfaceOnlyInvoke() {
   const doSrc = read(join(ROOT, "hub/gateway/src/hub-do.js"));
   const bridge = read(join(ROOT, "packages/bridge/bridge.js"));
@@ -440,6 +543,7 @@ assertWritePath();
 assertMapperGuard();
 assertStubsExecute();
 assertJoinDoor();
+await assertPairing();
 assertSurfaceOnlyInvoke();
 
 console.log(`\n${passed} passed, ${failed} failed`);

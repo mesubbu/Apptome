@@ -30,6 +30,14 @@ import {
   parseConnectomeManifest,
 } from "/protocol/protocol.js";
 
+/**
+ * Not a FAILURE code from the protocol taxonomy. Those describe an edge that
+ * stopped; this describes a browser that has not been let in yet, which happens
+ * before any edge exists. Keeping it separate stops it being rendered as
+ * "nothing was written" when nothing was ever attempted.
+ */
+export const PAIRING_REQUIRED = "PAIRING_REQUIRED";
+
 export class HubClient {
   constructor({ host, session }) {
     this.host = host;
@@ -50,9 +58,44 @@ export class HubClient {
       return this.transport;
     }
     this.transport = TRANSPORT.EDGE;
+    // Ask BEFORE opening the socket. An unpaired /hub upgrade is refused with a
+    // 401 the WebSocket API surfaces only as a generic `error` event, so the
+    // panel would say "can't reach your connectome" when the truth is "this
+    // browser has not been paired yet" — two different problems, two different
+    // things for the user to do.
+    const pairing = await this.pairStatus();
+    if (pairing.required && !pairing.paired) {
+      const err = new Error("pairing required");
+      err.code = PAIRING_REQUIRED;
+      err.pairing = pairing;
+      throw err;
+    }
     this.keyPair = await generateSessionKeys();
     await this.#openSocket();
     return this.transport;
+  }
+
+  /* ---------------- pairing (gateway/src/pairing.js) ---------------- */
+
+  /**
+   * The connectome id lives in an HttpOnly cookie, so this document cannot read
+   * it — which is the point. The gateway is the only thing that can say whether
+   * this browser is paired.
+   */
+  async pairStatus() {
+    const res = await this.#api("/api/pair");
+    if (res?.ok !== true) {
+      // Treat an unreachable gateway as "not required": the caller is about to
+      // fail with HUB_UNAVAILABLE anyway, and claiming a challenge is needed
+      // would send the user to fix the wrong thing.
+      return { paired: false, required: false, configured: false, siteKey: null };
+    }
+    return res;
+  }
+
+  /** Exchange a solved Turnstile challenge for a signed connectome cookie. */
+  async pair(token) {
+    return this.#api("/api/pair", { token });
   }
 
   async #extensionReachable() {
@@ -262,6 +305,11 @@ export class HubClient {
       method: body ? "POST" : "GET",
       headers: body ? { "content-type": "application/json" } : undefined,
       body: body ? JSON.stringify(body) : undefined,
+      // The connectome id is an HttpOnly cookie on the GATEWAY's origin, and
+      // this document is served from the surface origin. Without `include` the
+      // browser omits it on every cross-origin call and a paired user is told,
+      // correctly but uselessly, that they are not paired.
+      credentials: "include",
     });
     const json = await res.json().catch(() => null);
     if (!res.ok) {

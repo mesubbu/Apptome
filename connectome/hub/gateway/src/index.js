@@ -15,6 +15,15 @@
 
 import { HubDO } from "./hub-do.js";
 import { isAllowedOrigin, isAllowedApiOrigin } from "./origins.js";
+import {
+  clearCookie,
+  connectomeId,
+  isLocal,
+  mintToken,
+  pairCookie,
+  pairingConfigured,
+  verifyTurnstile,
+} from "./pairing.js";
 
 import protocolSrc from "./vendor/protocol.js.txt";
 import bridgeSrc from "./vendor/bridge.js.txt";
@@ -70,7 +79,9 @@ export default {
       if (request.headers.get("Upgrade") !== "websocket") {
         return new Response("expected websocket", { status: 426 });
       }
-      return hub(env, request).fetch(request);
+      const stub = await hub(env, request);
+      if (!stub) return new Response("pairing required", { status: 401 });
+      return stub.fetch(request);
     }
 
     // HTTP: graph sync and the consent ledger. Join door is Origin, not *.
@@ -78,7 +89,16 @@ export default {
       if (request.method === "OPTIONS") return apiPreflight(request, env);
       const denied = apiJoinDenied(request, env);
       if (denied) return denied;
+
+      // The pairing door itself. It must be reachable BEFORE a connectome id
+      // exists, so it is handled ahead of every id-gated route below.
+      if (url.pathname === "/api/pair") {
+        return withCors(request, await pairRoute(request, env), env);
+      }
+
       if (url.pathname === "/api/declare" && request.method === "POST") {
+        const stub = await hub(env, request);
+        if (!stub) return withCors(request, pairingRequired(env), env);
         const body = await request.json().catch(() => null);
         let found;
         if (body?.identity && body?.origin) {
@@ -91,7 +111,7 @@ export default {
         }
         const target = new URL(request.url);
         target.pathname = "/do/declare";
-        const res = await hub(env, request).fetch(
+        const res = await stub.fetch(
           new Request(target, {
             method: "POST",
             headers: { "content-type": "application/json" },
@@ -100,10 +120,12 @@ export default {
         );
         return withCors(request, res, env);
       }
+      const stub = await hub(env, request);
+      if (!stub) return withCors(request, pairingRequired(env), env);
       const doPath = url.pathname.replace(/^\/api\//, "/do/");
       const target = new URL(request.url);
       target.pathname = doPath;
-      const res = await hub(env, request).fetch(new Request(target, request));
+      const res = await stub.fetch(new Request(target, request));
       return withCors(request, res, env);
     }
 
@@ -112,28 +134,97 @@ export default {
 };
 
 /**
- * One Durable Object per user.
+ * One Durable Object per user, or null if the caller may not address one.
  *
- * Local dev uses a fixed name. In production this is where Cloudflare Access or
- * a Turnstile-gated pairing token belongs, so that knowing an id is not the same
- * as being allowed to join someone's connectome (GrokVisionResponse.md §4.5).
- * A connectome is a set of the user's own signed-in sessions; it must never be
- * addressable by guessing.
+ * This used to take the DO name from `?cx=`, an `x-connectome-id` header, or an
+ * unsigned cookie, defaulting to "local-dev" — so knowing an id was the same as
+ * being that user (GrokVisionResponse.md §4.5, REVIEW.md G1). Now the id must be
+ * one this gateway minted and signed. `src/pairing.js` is the whole door;
+ * outside ENVIRONMENT=local there is no unauthenticated path to a graph.
+ *
+ * Null is a refusal, not an error. Callers turn it into 401 + PAIRING_REQUIRED
+ * so the surface can offer the challenge instead of showing a dead panel.
  */
-function hub(env, request) {
-  const url = new URL(request.url);
-  const who =
-    url.searchParams.get("cx") ||
-    request.headers.get("x-connectome-id") ||
-    cookie(request, "cx") ||
-    "local-dev";
-  return env.HUB.get(env.HUB.idFromName(who));
+async function hub(env, request) {
+  const who = await connectomeId(env, request);
+  return who ? env.HUB.get(env.HUB.idFromName(who)) : null;
 }
 
-function cookie(request, name) {
-  const raw = request.headers.get("cookie") ?? "";
-  const hit = raw.split(/;\s*/).find((c) => c.startsWith(`${name}=`));
-  return hit ? decodeURIComponent(hit.slice(name.length + 1)) : null;
+/**
+ * A named refusal, not a blank 401. GrokVision.md §6.2 forbids silent failure;
+ * the surface renders `code` as the pairing prompt.
+ */
+function pairingRequired(env) {
+  return json(
+    {
+      ok: false,
+      code: "PAIRING_REQUIRED",
+      error: pairingConfigured(env)
+        ? "this browser is not paired with a connectome yet"
+        : "pairing is not configured on this gateway",
+    },
+    401
+  );
+}
+
+/**
+ * GET  /api/pair — is this browser paired, and which site key should the widget
+ *                  use? The site key is public by design; the SECRET half never
+ *                  leaves the Worker.
+ * POST /api/pair — verify the challenge, mint a connectome, set the cookie.
+ *
+ * Request-scoped and human-present: it runs because someone clicked a checkbox.
+ * It authorises addressing your own graph and nothing else — no write, no
+ * standing permission. GrokVision.md §10's "Global 'allow this agent'" is a
+ * different thing and is still rejected; consent stays per-edge.
+ */
+async function pairRoute(request, env) {
+  if (request.method === "GET") {
+    return json({
+      ok: true,
+      paired: Boolean(await connectomeId(env, request)),
+      required: !isLocal(env),
+      configured: pairingConfigured(env),
+      siteKey: env?.TURNSTILE_SITE_KEY ?? null,
+    });
+  }
+
+  // Exit is part of consent design (GrokVisionResponse.md Gap 10). Dropping the
+  // cookie does not delete the graph — /api/forget does that — it detaches this
+  // browser from it, which is the reversible half.
+  if (request.method === "DELETE") {
+    const res = json({ ok: true, paired: false });
+    res.headers.set("set-cookie", clearCookie(env));
+    return res;
+  }
+
+  if (request.method !== "POST") {
+    return json({ ok: false, error: "method not allowed" }, 405);
+  }
+
+  if (!pairingConfigured(env)) {
+    // Fail loudly. A gateway that cannot verify a challenge must not hand out
+    // connectome ids, and must not look like it succeeded.
+    return json(
+      { ok: false, code: "PAIRING_UNCONFIGURED", error: "pairing is not configured on this gateway" },
+      503
+    );
+  }
+
+  const body = await request.json().catch(() => null);
+  const verdict = await verifyTurnstile(env, body?.token, request.headers.get("CF-Connecting-IP"));
+  if (!verdict.ok) {
+    return json({ ok: false, code: "CHALLENGE_FAILED", error: verdict.error }, 403);
+  }
+
+  const token = await mintToken(env);
+  if (!token) {
+    return json({ ok: false, code: "PAIRING_UNCONFIGURED", error: "no signing key" }, 503);
+  }
+
+  const res = json({ ok: true, paired: true });
+  res.headers.set("set-cookie", pairCookie(env, token));
+  return res;
 }
 
 function hubJoinDenied(request, env) {
@@ -166,8 +257,12 @@ function apiPreflight(request, env) {
     status: 204,
     headers: {
       "access-control-allow-origin": origin,
-      "access-control-allow-methods": "GET,POST,OPTIONS",
+      "access-control-allow-methods": "GET,POST,DELETE,OPTIONS",
       "access-control-allow-headers": "content-type,x-connectome-id",
+      // The pairing cookie is the connectome id. Without this the browser drops
+      // it on every cross-origin call and a paired user looks unpaired.
+      // Safe only because the origin is echoed from the allowlist, never `*`.
+      "access-control-allow-credentials": "true",
       "access-control-max-age": "600",
       vary: "Origin",
     },
@@ -190,6 +285,7 @@ function withCors(request, res, env) {
   const headers = new Headers(res.headers);
   if (isAllowedApiOrigin(origin, env)) {
     headers.set("access-control-allow-origin", origin);
+    headers.set("access-control-allow-credentials", "true");
     headers.set("vary", "Origin");
   }
   return new Response(res.body, { status: res.status, headers });

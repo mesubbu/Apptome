@@ -17,7 +17,7 @@
  * quietly turns every other app into an anonymous backend (§10).
  */
 
-import { HubClient } from "./hub-client.js";
+import { HubClient, PAIRING_REQUIRED } from "./hub-client.js";
 import { MAPPER_URL } from "./config.js";
 import {
   FAILURE,
@@ -94,8 +94,14 @@ async function boot() {
 
   try {
     state.transport = await client.connect();
-  } catch {
-    state.view = { name: "failure", code: FAILURE.HUB_UNAVAILABLE };
+  } catch (err) {
+    // Two different stops. "Not paired" is a door the user can open; "hub
+    // unreachable" is not. Showing the retry copy for the first one would tell
+    // the user to keep reloading a page that will never change.
+    state.view =
+      err?.code === PAIRING_REQUIRED
+        ? { name: "pair", pairing: err.pairing ?? {} }
+        : { name: "failure", code: FAILURE.HUB_UNAVAILABLE };
     return render();
   }
 
@@ -120,7 +126,16 @@ async function refreshGraph() {
   state.paused = Boolean(g?.paused);
 }
 
+let chromeWired = false;
+
+/**
+ * Idempotent, because boot() runs a second time after pairing succeeds. Without
+ * the guard the pause button would fire twice per click — pausing and instantly
+ * resuming — which is the kind of bug that looks like the hub ignoring you.
+ */
 function wireChrome() {
+  if (chromeWired) return;
+  chromeWired = true;
   el("close").addEventListener("click", () => client.closeSurface());
   el("home").addEventListener("click", () => go({ name: "directory" }));
   el("grants-link").addEventListener("click", () => openGrants());
@@ -202,9 +217,130 @@ function render() {
       return body.append(viewGrants(state.view));
     case "failure":
       return body.append(viewFailure(state.view));
+    case "pair":
+      return body.append(viewPair(state.view));
     default:
       return body.append(viewDirectory());
   }
+}
+
+/* ================================================================== *
+ * pairing — REVIEW.md G1
+ *
+ * A connectome is the set of one user's own sessions. Before the hub will open
+ * one, it wants evidence that a human asked. The challenge is request-scoped and
+ * grants nothing but addressing your own graph: no write, no standing
+ * permission, no "allow this agent" (GrokVision.md §10). Every write still
+ * confirms exact JSON afterwards.
+ * ================================================================== */
+
+const TURNSTILE_API = "https://challenges.cloudflare.com/turnstile/v0/api.js";
+
+function viewPair(v) {
+  const wrap = node("div", "stack");
+  const box = node("div", "notice");
+  box.append(strongText("Open your connectome"));
+  box.append(
+    pText(
+      "This browser isn't paired with a connectome yet. A connectome is the set " +
+        "of your own apps, so the hub asks for a quick check that a person is here."
+    )
+  );
+  box.append(
+    pText(
+      "Pairing lets this browser reach your graph. It does not allow any app to " +
+        "write anything — every write still shows you the exact JSON first."
+    )
+  );
+
+  if (v.pairing?.configured === false) {
+    box.append(
+      pText("This gateway has no pairing keys configured, so it cannot open a connectome.")
+    );
+    wrap.append(box);
+    return wrap;
+  }
+
+  const slot = node("div", "row");
+  slot.id = "turnstile-slot";
+  box.append(slot);
+
+  const status = node("p", "muted");
+  status.id = "pair-status";
+  box.append(status);
+
+  wrap.append(box);
+  mountTurnstile(v.pairing?.siteKey, slot, status);
+  return wrap;
+}
+
+/**
+ * The widget is loaded on demand, only on this view. It is the one third-party
+ * script the surface ever runs, and it renders into a slot rather than being
+ * given the document — a hub-origin panel that asks for approvals should not
+ * carry a foreign script it does not need.
+ */
+async function mountTurnstile(siteKey, slot, status) {
+  if (!siteKey) {
+    status.textContent = "This gateway did not supply a challenge key.";
+    return;
+  }
+  try {
+    await loadScript(TURNSTILE_API);
+  } catch {
+    status.textContent = "Could not load the challenge. Check your connection and reload.";
+    return;
+  }
+  if (!window.turnstile) {
+    status.textContent = "Could not load the challenge. Check your connection and reload.";
+    return;
+  }
+  window.turnstile.render(slot, {
+    sitekey: siteKey,
+    callback: (token) => completePairing(token, status),
+    "error-callback": () => {
+      status.textContent = "That check did not complete. Try again.";
+    },
+    "expired-callback": () => {
+      status.textContent = "That check expired. Try again.";
+    },
+  });
+}
+
+async function completePairing(token, status) {
+  status.textContent = "Opening your connectome…";
+  const res = await client.pair(token);
+  if (res?.ok !== true) {
+    // Named refusal, never a silent stop (§6.2).
+    status.textContent = res?.error ?? "Pairing failed.";
+    window.turnstile?.reset?.();
+    return;
+  }
+  // The cookie is set. Re-run boot rather than reload so the anti-spoof mark and
+  // the host attachment survive.
+  state.view = { name: "directory" };
+  await boot();
+}
+
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector(`script[src="${src}"]`);
+    if (existing) {
+      // A second challenge in the same panel must not re-add the tag.
+      if (existing.dataset.loaded) resolve();
+      else existing.addEventListener("load", () => resolve(), { once: true });
+      return;
+    }
+    const tag = document.createElement("script");
+    tag.src = src;
+    tag.async = true;
+    tag.addEventListener("load", () => {
+      tag.dataset.loaded = "1";
+      resolve();
+    }, { once: true });
+    tag.addEventListener("error", () => reject(new Error("script failed")), { once: true });
+    document.head.append(tag);
+  });
 }
 
 /* ---------------- directory ---------------- */

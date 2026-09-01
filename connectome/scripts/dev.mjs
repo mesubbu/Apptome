@@ -24,10 +24,18 @@ const wrangler = resolve(root, "node_modules/.bin/wrangler");
  */
 const mesh = resolveEnv();
 
-/** Only Workers with a `main` take vars. The stubs and surface are assets-only. */
+/**
+ * Only Workers with a `main` take vars. The stubs and surface are assets-only.
+ *
+ * ENVIRONMENT:local is what keeps `pnpm dev` zero-config now that the gateway
+ * pairs (src/pairing.js). The gateway fails CLOSED — unset means production,
+ * which means no unauthenticated fallback — so the local mesh has to say so out
+ * loud. This is the only place that says it, and it is not the default.
+ */
 const WORKER_VARS = [
   `SURFACE_ORIGIN:${mesh.surface}`,
   `ALLOWED_ORIGINS:${mesh.spokes.join(",")}`,
+  "ENVIRONMENT:local",
 ];
 
 const SERVICES = [
