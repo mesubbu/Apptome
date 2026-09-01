@@ -396,15 +396,28 @@ function viewDirectory() {
   }
 
   for (const { member, caps } of results) {
-    const card = node("button", "member-card");
+    // S1: the card is a div[role=button], not a <button>, so capability chips
+    // inside it can be real buttons. Class name `.member-card` is load-bearing.
+    const card = node("div", "member-card");
     card.dataset.origin = member.origin;
     card.dataset.present = member.present ? "1" : "0";
-    card.addEventListener("click", () => go({ name: "member", origin: member.origin }));
+    card.tabIndex = 0;
+    card.setAttribute("role", "button");
+    card.setAttribute("aria-label", `${member.name} · ${hostLabel(member.origin)}`);
+    const openMember = () => go({ name: "member", origin: member.origin });
+    card.addEventListener("click", (e) => {
+      if (e.target.closest(".member-chip")) return;
+      openMember();
+    });
+    card.addEventListener("keydown", (e) => {
+      if (e.target !== card) return;
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        openMember();
+      }
+    });
 
-    const icon = node("span", "member-icon");
-    icon.textContent = (member.name || "?").slice(0, 1).toUpperCase();
-    icon.style.setProperty("--app-hue", appHue(member.origin));
-    card.append(icon);
+    card.append(paintMemberIcon(member));
 
     const text = node("span", "member-text");
     const title = node("span", "member-name");
@@ -426,6 +439,23 @@ function viewDirectory() {
       ? "tools turned off by this site"
       : `${caps.length} capabilit${caps.length === 1 ? "y" : "ies"}`;
     text.append(meta);
+
+    if (!member.blocked && caps.length) {
+      const chips = node("span", "member-chips");
+      for (const cap of caps) {
+        const chip = node("button", `member-chip ${cap.readOnly ? "read" : "write"}`);
+        chip.type = "button";
+        chip.textContent = cap.name;
+        chip.disabled = state.paused;
+        chip.title = cap.readOnly ? "reads" : "writes";
+        chip.addEventListener("click", (e) => {
+          e.stopPropagation();
+          startEdge(member, cap);
+        });
+        chips.append(chip);
+      }
+      text.append(chips);
+    }
     card.append(text);
 
     // Presence is transport, not membership (§7.1). Absent members stay listed.
@@ -835,6 +865,10 @@ function viewConfirm(v) {
   for (const [name, spec] of Object.entries(props)) {
     const current = args[name] ?? provenanced(undefined, PROV.MISSING, null, false);
     const row = node("label", "field");
+
+    const human = node("span", "field-label");
+    human.textContent = humanizeField(name);
+    row.append(human);
 
     const head = node("span", "field-head");
     const lbl = node("span", "field-name");
@@ -1258,6 +1292,56 @@ function appHue(origin) {
   let h = 0;
   for (const c of String(origin)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
   return h % 360;
+}
+
+/** S2: `clientName` → "Client name". The mono `.field-name` still shows the raw key. */
+function humanizeField(name) {
+  const spaced = String(name)
+    .replace(/[_\-]+/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+  if (!spaced) return String(name);
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
+/**
+ * S3: an <img> only when the icon URL resolves to THIS member's origin.
+ * Paths like `/icon.svg` are fine. data:, javascript:, other origins, and
+ * raw SVG markup are not — never innerHTML an app-supplied string.
+ */
+function sameOriginIconUrl(member) {
+  const raw = member?.icon;
+  if (typeof raw !== "string" || !raw.trim()) return null;
+  if (raw.trimStart().startsWith("<")) return null;
+  try {
+    const url = new URL(raw, member.origin);
+    if (url.origin !== member.origin) return null;
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+function paintMemberIcon(member) {
+  const icon = node("span", "member-icon");
+  icon.style.setProperty("--app-hue", appHue(member.origin));
+  icon.textContent = (member.name || "?").slice(0, 1).toUpperCase();
+  const src = sameOriginIconUrl(member);
+  if (!src) return icon;
+  const img = node("img", "member-icon-img");
+  img.alt = "";
+  img.referrerPolicy = "no-referrer";
+  img.addEventListener("error", () => img.remove());
+  img.addEventListener("load", () => {
+    icon.textContent = "";
+    icon.append(img);
+  });
+  img.src = src;
+  return icon;
 }
 
 /**

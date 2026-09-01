@@ -392,6 +392,10 @@ function assertWritePath() {
   const start = src.slice(src.indexOf("async function startEdge"), src.indexOf("async function openInBackground"));
   assert(/name:\s*"confirm"/.test(start) || /prepareConfirm/.test(start), "startEdge proposes confirm, does not write");
   assert(!/client\.invoke\([\s\S]*v\.cap\.name/.test(start), "startEdge does not invoke the target write");
+  // S1: chips are nested buttons, so the card cannot be a <button>. Drivers still click .member-card.
+  assert(/node\("div", "member-card"\)/.test(src), "member-card is a div (chips cannot nest in a button)");
+  assert(/setAttribute\("role", "button"\)/.test(src), "member-card keeps a button role");
+  assert(/member-chip/.test(src) && /startEdge\(member, cap\)/.test(src), "directory chips go through startEdge");
 }
 
 /**
