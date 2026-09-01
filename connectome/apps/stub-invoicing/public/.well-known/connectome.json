@@ -1,0 +1,9 @@
+{
+  "name": "Ledger",
+  "icon": "/icon.svg",
+  "launch": "/",
+  "capabilities": [
+    { "name": "create-invoice", "summary": "Draft an invoice for a customer", "write": true, "risk": "medium" },
+    { "name": "list-invoices", "summary": "Invoices and which are still drafts", "write": false, "risk": "low" }
+  ]
+}

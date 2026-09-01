@@ -1,0 +1,11 @@
+{
+  // Static assets only. A spoke is an ordinary web app; it runs no connectome code
+  // of its own. The bridge arrives from the gateway origin (edge injection in
+  // production, a plain <script> tag here).
+  "name": "stub-invoicing",
+  "compatibility_date": "2026-08-04",
+  "assets": {
+    "directory": "./public",
+    "not_found_handling": "single-page-application"
+  }
+}

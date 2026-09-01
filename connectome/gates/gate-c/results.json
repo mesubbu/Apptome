@@ -1,0 +1,45 @@
+{
+  "at": "2026-08-29T03:47:57.185Z",
+  "results": [
+    {
+      "id": "C-declare",
+      "ok": true,
+      "detail": "added http://localhost:8788; Ledger named with origin; marked not present"
+    },
+    {
+      "id": "C-declare-absent",
+      "ok": true,
+      "detail": "no manifest → no connectome.json at that origin — we don't invent a name"
+    },
+    {
+      "id": "C1-named",
+      "ok": true,
+      "detail": "locus Ledger (Ledger); CRM named with origin"
+    },
+    {
+      "id": "C1-locus",
+      "ok": true,
+      "detail": "window title is still Ledger"
+    },
+    {
+      "id": "C1-read",
+      "ok": true,
+      "detail": "CRM read succeeded; result shown in the surface inside Ledger"
+    },
+    {
+      "id": "C1-isolation",
+      "ok": true,
+      "detail": "Ledger DOM does not contain CRM clientId from the read"
+    },
+    {
+      "id": "C2-write",
+      "ok": true,
+      "detail": "add-note confirmed and ran from inside Ledger"
+    },
+    {
+      "id": "C2-note",
+      "ok": true,
+      "detail": "note appeared on the CRM client; user still had Ledger as the host window"
+    }
+  ]
+}

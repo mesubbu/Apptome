@@ -1,0 +1,5 @@
+/.well-known/connectome.json
+  Access-Control-Allow-Origin: *
+
+/opt-out/*
+  Permissions-Policy: tools=()

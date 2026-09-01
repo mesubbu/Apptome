@@ -1,0 +1,35 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "mapper",
+  "main": "src/index.js",
+  "compatibility_date": "2026-08-04",
+  "observability": {
+    // Per-edge match and refusal rates are the honest metrics for a consent
+    // product (GrokVisionResponse.md §4.5). Nothing logged here can contain a
+    // field value, because none ever arrives.
+    "enabled": true
+  }
+
+  // ------------------------------------------------------------------
+  // Workers AI behind AI Gateway — NOT ENABLED. Left here as the exact
+  // shape of the later step, so nobody has to guess it.
+  //
+  // Uncommenting this is the whole "swap in an LLM" change: src/llm-mapper.js
+  // already speaks the same interface as the static mapper and returns null
+  // until `env.AI` exists. The hub keeps knowing only an HTTPS endpoint; it
+  // still never imports a model runtime (GrokVision.md §3.2).
+  //
+  // "ai": {
+  //   "binding": "AI"
+  // },
+  // "vars": {
+  //   // AI Gateway gives caching, rate limits and logs for the mapper calls.
+  //   "AI_GATEWAY": "connectome-mapper",
+  //   "AI_MODEL": "@cf/meta/llama-3.1-8b-instruct"
+  // }
+  //
+  // Deliberately absent, and CI-enforced absent (ci/distortion-tests.mjs):
+  // "browser" (Browser Rendering), "triggers.crons", "queues", "workflows".
+  // Each one is the door to the product GrokVision.md §9/§10 rejects.
+  // ------------------------------------------------------------------
+}

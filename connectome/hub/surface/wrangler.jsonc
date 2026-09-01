@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "surface",
+  "compatibility_date": "2026-08-04",
+  "assets": {
+    "directory": "./public",
+    "not_found_handling": "single-page-application"
+  }
+
+  // Permissions-Policy: tools=() is set on responses via public/_headers
+  // (and already in index.html). Do not set allow="tools" on anything here.
+  //
+  // Deliberately absent, and CI-enforced absent (ci/distortion-tests.mjs):
+  // Durable Objects, "browser", "triggers.crons", "queues", "workflows".
+}

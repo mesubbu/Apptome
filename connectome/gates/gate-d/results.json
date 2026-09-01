@@ -1,0 +1,35 @@
+{
+  "at": "2026-08-29T03:55:17.813Z",
+  "results": [
+    {
+      "id": "D1-crm",
+      "ok": true,
+      "detail": "inside CRM: Ledger and Tick named with origins"
+    },
+    {
+      "id": "D1-ledger",
+      "ok": true,
+      "detail": "inside Ledger: CRM and Tick named with origins"
+    },
+    {
+      "id": "D1-tick",
+      "ok": true,
+      "detail": "inside Tick: CRM and Ledger named with origins"
+    },
+    {
+      "id": "D2-read",
+      "ok": true,
+      "detail": "Tick list-entries visible in the surface inside CRM"
+    },
+    {
+      "id": "D2-isolation",
+      "ok": true,
+      "detail": "CRM document does not contain Tick entry JSON"
+    },
+    {
+      "id": "D3-skip",
+      "ok": true,
+      "detail": "optional unlike write skipped; no TimeEntry CBO"
+    }
+  ]
+}

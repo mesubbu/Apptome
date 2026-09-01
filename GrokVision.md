@@ -179,13 +179,13 @@ v0 may use only the cache (Gate A). The vision is the graph, visible from inside
 
 Same three steps as the mediation proof, **locus unchanged**:
 
-1. **Discovery** — hub knows members and tools (cache now, graph as soon as it exists).
+1. **Discovery** — hub knows members and tools (cache now, graph as soon as it exists). `document.modelContext.getTools()` is a normative member of `ModelContext`. Each `RegisteredTool` carries `name`, `description`, `inputSchema`, `origin`, and the owner `window`. Still **frame-tree scoped**, not cross-tab.
 2. **Map** — `Mapper` proposes args from A’s context to B’s tool. User sees the proposal in **A’s window**.
-3. **Execute** — hub invokes B in B’s own world (page world of B’s tab, in v0/v1). Result returns to the **surface in A**.
+3. **Execute** — hub invokes B in B’s own world via `document.modelContext.executeTool` (also normative on `ModelContext`), in the page world of B’s tab. Result returns to the **surface in A**. Still not cross-tab: do not call `executeTool` in one tab and expect it to run in another.
 
 The user does not follow the execution into B. B may paint its own UI if it is open. That is B’s business. The user’s place of work is A.
 
-Scanning tabs and invoking across origins is something the **extension** does because it is privileged. WebMCP does not give cross-tab `executeTool` (open spec issue). Do not invent `chrome.aiAgent`. Do not call `executeTool` from the extension page and expect it to reach another tab. Invoke inside each spoke’s page world.
+Scanning tabs and invoking across origins is something the **extension** does because it is privileged. WebMCP `getTools` / `executeTool` stay in the same tab’s frame tree. Do not invent `chrome.aiAgent`. Do not call `executeTool` from the extension page and expect it to reach another tab. Invoke inside each spoke’s page world.
 
 ---
 
@@ -205,7 +205,7 @@ An app opts in when it registers one or more tools on the standard contract:
 
 That is the whole admission ticket.
 
-WebMCP status language: **Community Group Draft; Chrome origin trial / flag.** Not a W3C standard. Not a “2026 Browser Spec.” Flag: `chrome://flags/#enable-webmcp-testing`. If the native API is missing, a same-API polyfill is allowed so apps do not change.
+WebMCP status language: **Community Group Draft; Chrome origin trial / flag.** Not a W3C standard. Not a “2026 Browser Spec.” Flag: `chrome://flags/#enable-webmcp-testing`. Origin trial window: **Chrome 149–156**. After that window, and for any origin that is not in the trial, the **same-API polyfill is the primary path** so apps do not change. `navigator.modelContext` was deprecated in Chrome 150 and is absent from the 19 August 2026 draft; do not use it. `getTools` and `executeTool` are normative on `document.modelContext`.
 
 Declarative (HTML) and imperative (JS) registration both count.
 
@@ -327,8 +327,8 @@ Mitigation here is not a smarter model. It is: typed preview of every write, unt
 
 - Secure, origin-keyed documents.
 - Permissions-Policy `tools` defaults to `self`.
-- Cross-origin sharing only via `exposedTo` + `fromOrigins` + `allow="tools"` on iframes — that is **not** the connectome path. The connectome path is the privileged hub.
-- Native `getTools` / `executeTool` see the same tab frame tree only.
+- `exposedTo` plus Permissions-Policy `tools` is a real, normative cross-origin permission model. It is **not** the cross-tab connectome path — the connectome path is the privileged hub. It **is** the hosted-slot path (§5.2): an app that wants the surface in a chosen column hosts a hub-origin iframe. The default injected surface iframe is hub origin and is not delegated `allow="tools"`.
+- Native `getTools` / `executeTool` are normative on `ModelContext` and still see the same tab frame tree only.
 - Cross-tab only via the hub, in each page world.
 - Surface iframe is hub origin; host cannot read it.
 - Host permissions: the proof uses the stub origins, not `<all_urls>`. Widen only with a reason.

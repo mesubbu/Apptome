@@ -1,0 +1,65 @@
+{
+  "at": "2026-08-29T03:33:45.709Z",
+  "results": [
+    {
+      "id": "B-empty",
+      "ok": true,
+      "detail": "only CRM connected → honest empty state"
+    },
+    {
+      "id": "B-shot-1",
+      "ok": true,
+      "detail": "still in CRM (Acme CRM); Ledger named with origin in the surface"
+    },
+    {
+      "id": "B1-locus",
+      "ok": true,
+      "detail": "window title is still Acme CRM, not an agent shell"
+    },
+    {
+      "id": "B4-named",
+      "ok": true,
+      "detail": "Ledger named; create-invoice listed"
+    },
+    {
+      "id": "B5-json",
+      "ok": true,
+      "detail": "exact JSON in the surface confirm card"
+    },
+    {
+      "id": "B6-result",
+      "ok": true,
+      "detail": "result shown in the surface inside CRM"
+    },
+    {
+      "id": "B6-draft",
+      "ok": true,
+      "detail": "draft invoice appeared in Ledger"
+    },
+    {
+      "id": "B-pause",
+      "ok": true,
+      "detail": "kill switch: banner on, capability rows disabled, no invoke"
+    },
+    {
+      "id": "B7-cancel",
+      "ok": true,
+      "detail": "CONSENT_DENIED; Ledger rows unchanged (1)"
+    },
+    {
+      "id": "B8-unavailable",
+      "ok": true,
+      "detail": "Ledger closed → APP_UNAVAILABLE copy in the CRM surface, no write"
+    },
+    {
+      "id": "B-spoof",
+      "ok": true,
+      "detail": "fake mark \"??\" ≠ real mark \"▲◈\"; no bridge; cannot read hub localStorage"
+    },
+    {
+      "id": "B-shot-4",
+      "ok": true,
+      "detail": "CRM and Ledger share no stack or schema; join is tools + one script tag"
+    }
+  ]
+}

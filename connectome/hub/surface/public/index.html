@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Connectome</title>
+    <!--
+      This document is served from the HUB's origin and rendered inside a
+      cross-origin iframe in the host app's window (GrokVision.md §3.3).
+
+      Permissions-Policy `tools=()`: the surface must never be able to register
+      or run WebMCP tools of its own. It reaches other apps' tools through the
+      hub, with per-edge consent — not by holding a delegated tool permission.
+    -->
+    <meta http-equiv="Permissions-Policy" content="tools=()" />
+    <link rel="stylesheet" href="/surface.css" />
+  </head>
+  <body>
+    <header class="chrome">
+      <div class="brand">
+        <!--
+          The anti-spoof mark. Stored in THIS origin's localStorage, so a host
+          page cannot read it and therefore cannot render a convincing fake of
+          this panel. If the mark is wrong, the panel is not ours.
+        -->
+        <span id="mark" class="mark" title="Your connectome's mark. A fake panel cannot show this."></span>
+        <button id="home" class="brand-name" type="button">Connectome</button>
+      </div>
+      <div class="chrome-actions">
+        <button id="grants-link" class="ghost" type="button">Connections</button>
+        <button id="pause" class="ghost" type="button">Pause</button>
+        <button id="close" class="ghost close" type="button" aria-label="Close">×</button>
+      </div>
+    </header>
+
+    <!--
+      Rooted in THIS app (§5.1). The surface always says which window it is
+      attached to, by name AND by origin, so "inside App A" is never ambiguous.
+    -->
+    <div class="rooted">
+      <span class="rooted-label">in</span>
+      <span id="host-name" class="rooted-name"></span>
+      <span id="host-origin" class="rooted-origin"></span>
+      <span id="transport" class="rooted-transport"></span>
+    </div>
+
+    <div id="paused-banner" class="banner" hidden>
+      Your connectome is paused. Nothing can run until you resume it.
+    </div>
+
+    <!--
+      Search, not chat (GrokVisionResponse.md E8). The information architecture is
+      "named apps and their capabilities", and a blank prompt box would quietly
+      turn every other app into an anonymous backend (GrokVision.md §10).
+    -->
+    <div class="searchbar">
+      <input id="search" class="search" type="search" placeholder="Search apps and capabilities" autocomplete="off" />
+    </div>
+
+    <main id="body" class="body"></main>
+
+    <footer class="foot">
+      Apps stay origin-isolated. This panel is the hub's, not this app's. Every
+      write shows you the exact JSON first.
+    </footer>
+
+    <script type="module" src="/surface.js"></script>
+  </body>
+</html>

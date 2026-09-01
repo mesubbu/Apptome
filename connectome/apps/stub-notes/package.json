@@ -1,0 +1,8 @@
+{
+  "name": "stub-notes",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --port 8789"
+  }
+}

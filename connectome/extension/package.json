@@ -1,0 +1,6 @@
+{
+  "name": "extension",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Thin on-device hub transport (T6)."}
+}

@@ -1,0 +1,52 @@
+{
+  "manifest_version": 3,
+  "name": "Connectome",
+  "version": "0.0.1",
+  "description": "Thin on-device hub transport. No mapping, no policy, no graph UI.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1d4+rGgCkbrpGQL4kPuv3kPuITwurQeco/FADpTyL5+xOnI9IdTmEtuS+845VdFNP2v7IzTpH+4uhptWJ6uAo37y7sQuZpQaGI2Zi5AFFm9Dm108DZrvopd2JEm7geYGu4dNfuaFuJT/t/tQBn79DnVhTZHbxvcApFul+G83E4ja11AL7aiFGAM3J+I4FQNdix5OZrQOpjqYtvH1K+cTAk5z+x7wWtdmgSvN9W9fBLXOqFIW5GOed1S8m0pOsrQHZ+bUq/cWIJw0E9OJL8dP3XqpcIp9ggY7CPW2VWYADlFAlQ0rLTKv9tTuwEvbmO+7vcVSJAf9zYpYuPbrHDbOZwIDAQAB",
+  "minimum_chrome_version": "116",
+  "permissions": ["storage"],
+  "background": { "service_worker": "sw.js", "type": "module" },
+  "host_permissions": [
+    "http://localhost:8787/*",
+    "http://localhost:8788/*",
+    "http://localhost:8789/*",
+    "http://localhost:8790/*",
+    "http://localhost:8791/*"
+  ],
+  "externally_connectable": {
+    "matches": ["http://localhost:8790/*"]
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://localhost:8787/*",
+        "http://localhost:8788/*",
+        "http://localhost:8789/*"
+      ],
+      "js": ["page-flag.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "http://localhost:8787/*",
+        "http://localhost:8788/*",
+        "http://localhost:8789/*"
+      ],
+      "js": ["isolated.js"],
+      "run_at": "document_start",
+      "world": "ISOLATED"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["boot.js", "vendor/*", "protocol/*"],
+      "matches": [
+        "http://localhost:8787/*",
+        "http://localhost:8788/*",
+        "http://localhost:8789/*"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,100 @@
+{
+  "at": "2026-08-29T04:35:41.683Z",
+  "results": [
+    {
+      "id": "E-persist-tab",
+      "ok": true,
+      "detail": "Ledger listed present=false; create-invoice remembered"
+    },
+    {
+      "id": "E-persist-api",
+      "ok": true,
+      "detail": "GET /api/graph: Ledger present=false, create-invoice kept"
+    },
+    {
+      "id": "E-open-or-focus",
+      "ok": true,
+      "detail": "stayed on CRM http://localhost:8787/; Ledger background http://localhost:8788/"
+    },
+    {
+      "id": "E-open-confirm",
+      "ok": true,
+      "detail": "write still confirmed in CRM after background open"
+    },
+    {
+      "id": "E-grant-uses",
+      "ok": true,
+      "detail": "uses=1 sessionId=surf_4bb19711050d4b35 scope=session"
+    },
+    {
+      "id": "E-once-write",
+      "ok": true,
+      "detail": "ONCE grant stored after confirm"
+    },
+    {
+      "id": "E-once-spent",
+      "ok": true,
+      "detail": "ONCE grant not reused — source pick again"
+    },
+    {
+      "id": "E-session-write",
+      "ok": true,
+      "detail": "SESSION grant after ONCE"
+    },
+    {
+      "id": "E-schema-drift",
+      "ok": true,
+      "detail": "SCHEMA_DRIFT shown; no auto-write"
+    },
+    {
+      "id": "E-session-reconnect",
+      "ok": true,
+      "detail": "SESSION grant died on surface reconnect"
+    },
+    {
+      "id": "E-export",
+      "ok": true,
+      "detail": "metadata only (3 members, 2 grants)"
+    },
+    {
+      "id": "E-pause",
+      "ok": true,
+      "detail": "pause banner; capabilities disabled"
+    },
+    {
+      "id": "E-forget",
+      "ok": true,
+      "detail": "Forget while Ledger tab open; HELLO did not resurrect"
+    },
+    {
+      "id": "E-readd",
+      "ok": true,
+      "detail": "Add an app restored Ledger after forget"
+    },
+    {
+      "id": "E-opt-out",
+      "ok": true,
+      "detail": "blocked=true card=AAcme CRMlocalhost:8787tools turned off by this site"
+    },
+    {
+      "id": "E-gateway-down",
+      "ok": true,
+      "detail": "gateway :8791 gone; stubs+surface+mapper still up"
+    },
+    {
+      "id": "E-local-first",
+      "ok": true,
+      "detail": "Gate B write succeeded with gateway down (extension local-first)"
+    },
+    {
+      "id": "E-edge-unavailable",
+      "ok": true,
+      "detail": "edge-only surface copies HUB_UNAVAILABLE"
+    },
+    {
+      "id": "E-persist-restart",
+      "ok": true,
+      "detail": "DO sqlite survived gateway restart; Ledger capabilities still there"
+    }
+  ]
+}

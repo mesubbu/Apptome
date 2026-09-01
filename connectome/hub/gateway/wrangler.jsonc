@@ -1,0 +1,29 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "connectome-gateway",
+  "main": "src/index.js",
+  "compatibility_date": "2026-08-04",
+  "observability": { "enabled": true },
+
+  // The bridge sources are served verbatim to every spoke, so they are imported
+  // as text rather than bundled. `pnpm sync` refreshes them from packages/.
+  "rules": [{ "type": "Text", "globs": ["**/*.js.txt"], "fallthrough": false }],
+
+  "durable_objects": {
+    "bindings": [{ "name": "HUB", "class_name": "HubDO" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["HubDO"] }]
+
+  // DELIBERATELY ABSENT, and CI enforces their absence (ci/distortion-tests.mjs):
+  //
+  //   browser            Browser Rendering. GrokVision.md §10 rejects a cloud
+  //                      headless browser as "the real connectome" — it is a robot
+  //                      logging in as you, not your own session. Tools run in the
+  //                      user's own tab, in the user's own session, or not at all.
+  //   triggers.crons     A cron makes the hub act without the user. GrokVision.md
+  //                      §6.2: unattended overnight runs are another product.
+  //   queues, workflows  Both exist to run work later, unattended. Same reason.
+  //
+  // Each of these is one line away. That is exactly why the absence is a test and
+  // not a comment.
+}

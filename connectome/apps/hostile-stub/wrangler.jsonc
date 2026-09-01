@@ -1,0 +1,10 @@
+{
+  // Gate B anti-spoof check only. Not a product member. Not on the hub allowlist.
+  // Must never load the bridge — a fake panel cannot show the real mark.
+  "name": "hostile-stub",
+  "compatibility_date": "2026-08-04",
+  "assets": {
+    "directory": "./public",
+    "not_found_handling": "single-page-application"
+  }
+}

@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tick</title>
+    <link rel="icon" href="/icon.svg" />
+    <style>
+      :root {
+        --ink: #1b1725;
+        --ink-soft: #544c63;
+        --ink-faint: #9b93a9;
+        --line: #e7e3ee;
+        --paper: #ffffff;
+        --wash: #f7f5fa;
+        --brand: #7c3aed;
+        --brand-wash: #f3edff;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+      }
+
+      body {
+        background: var(--wash);
+        color: var(--ink);
+        font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      .shell {
+        max-width: 760px;
+        margin: 0 auto;
+        padding: 28px 24px 56px;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 22px;
+      }
+
+      .mark img {
+        display: block;
+        width: 34px;
+        height: 34px;
+      }
+
+      .wordmark {
+        font-size: 16px;
+        font-weight: 650;
+        letter-spacing: -0.01em;
+      }
+
+      .wordmark span {
+        display: block;
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--ink-faint);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .status {
+        margin-left: auto;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 5px 11px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--paper);
+        font-size: 12px;
+        color: var(--ink-soft);
+      }
+
+      .status::before {
+        content: "";
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--ink-faint);
+      }
+
+      .status[data-state="ready"]::before {
+        background: #16a34a;
+      }
+
+      .status[data-state="down"] {
+        border-color: #fcd9a8;
+        background: #fffaf1;
+        color: #92400e;
+      }
+
+      .status[data-state="down"]::before {
+        background: #d97706;
+      }
+
+      .card {
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+      }
+
+      .stopwatch {
+        padding: 26px 24px 22px;
+        text-align: center;
+      }
+
+      .clock {
+        margin: 0;
+        font-size: 52px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        font-variant-numeric: tabular-nums;
+        color: var(--ink);
+      }
+
+      .clock[data-running="false"] {
+        color: var(--ink-faint);
+      }
+
+      .now {
+        margin: 2px 0 0;
+        min-height: 22px;
+        color: var(--ink-soft);
+      }
+
+      .now b {
+        font-weight: 650;
+      }
+
+      .now code {
+        margin-left: 6px;
+        padding: 1px 7px;
+        border-radius: 999px;
+        background: var(--brand-wash);
+        font: 600 11px/1.7 ui-monospace, SFMono-Regular, Menlo, monospace;
+        color: var(--brand);
+      }
+
+      form {
+        display: flex;
+        gap: 8px;
+        margin: 20px 0 0;
+      }
+
+      input {
+        flex: 1 1 auto;
+        min-width: 0;
+        padding: 9px 12px;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        font: inherit;
+        color: inherit;
+        background: #fdfdfe;
+      }
+
+      input.code {
+        flex: 0 0 120px;
+      }
+
+      input:focus-visible {
+        outline: 2px solid var(--brand);
+        outline-offset: 1px;
+      }
+
+      button {
+        flex: 0 0 auto;
+        padding: 9px 18px;
+        border: 0;
+        border-radius: 9px;
+        background: var(--brand);
+        color: #fff;
+        font: 600 14px/1.5 inherit;
+        cursor: pointer;
+      }
+
+      button.stop {
+        background: #1b1725;
+      }
+
+      button:disabled {
+        opacity: 0.45;
+        cursor: default;
+      }
+
+      .entries-head {
+        display: flex;
+        align-items: baseline;
+        gap: 9px;
+        margin: 30px 4px 10px;
+      }
+
+      .entries-head h2 {
+        margin: 0;
+        font-size: 12px;
+        font-weight: 650;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--ink-soft);
+      }
+
+      .total {
+        font-size: 12px;
+        color: var(--ink-faint);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .entries {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .entries li {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 13px 18px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .entries li:last-child {
+        border-bottom: 0;
+      }
+
+      .entries .label {
+        font-weight: 600;
+      }
+
+      .entries .code {
+        display: inline-block;
+        margin-left: 8px;
+        padding: 1px 7px;
+        border-radius: 999px;
+        background: var(--brand-wash);
+        font: 600 11px/1.7 ui-monospace, SFMono-Regular, Menlo, monospace;
+        color: var(--brand);
+      }
+
+      .entries .dur {
+        margin-left: auto;
+        font-variant-numeric: tabular-nums;
+        font-weight: 600;
+      }
+
+      .entries li[data-running="true"] .dur {
+        color: var(--brand);
+      }
+
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--brand);
+        animation: pulse 1.6s ease-in-out infinite;
+      }
+
+      @keyframes pulse {
+        50% {
+          opacity: 0.25;
+        }
+      }
+
+      .empty {
+        padding: 34px 18px 38px;
+        text-align: center;
+        color: var(--ink-faint);
+      }
+
+      @media (max-width: 560px) {
+        form {
+          flex-wrap: wrap;
+        }
+
+        input.code {
+          flex: 1 1 auto;
+        }
+      }
+    </style>
+    <script
+      type="module"
+      src="http://localhost:8791/.webmcp/boot.js"
+      data-connectome-hub="http://localhost:8791"
+      data-connectome-surface="http://localhost:8790"
+    ></script>
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <div class="shell">
+      <header class="topbar">
+        <span class="mark"><img src="/icon.svg" alt="" /></span>
+        <div class="wordmark">Tick<span>Time tracking</span></div>
+        <p class="status" id="tool-status" data-state="wait">Connecting tools&hellip;</p>
+      </header>
+
+      <section class="card stopwatch">
+        <p class="clock" id="clock" data-running="false" aria-live="off">0:00:00</p>
+        <p class="now" id="now"></p>
+        <form id="timer-form">
+          <input id="label" name="label" placeholder="What are you working on?" autocomplete="off" />
+          <input id="project" class="code" name="projectCode" placeholder="Project code" autocomplete="off" />
+          <button id="toggle" type="submit">Start</button>
+        </form>
+      </section>
+
+      <div class="entries-head">
+        <h2>Time entries</h2>
+        <span class="total" id="total"></span>
+      </div>
+      <section class="card" id="entries-card" aria-live="polite"></section>
+    </div>
+  </body>
+</html>

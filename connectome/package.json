@@ -1,0 +1,25 @@
+{
+  "name": "connectome",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Any opted-in app is accessible from inside any other opted-in app.",
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:crm": "pnpm --filter stub-crm dev",
+    "dev:invoicing": "pnpm --filter stub-invoicing dev",
+    "dev:notes": "pnpm --filter stub-notes dev",
+    "dev:surface": "pnpm --filter surface dev",
+    "dev:gateway": "pnpm --filter gateway dev",
+    "dev:mapper": "pnpm --filter mapper dev",
+    "sync": "node scripts/sync-bridge.mjs",
+    "check": "node ci/distortion-tests.mjs && node ci/provide-context.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "^4.98.0"
+  },
+  "packageManager": "pnpm@10.30.3",
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild", "workerd"]
+  }
+}

@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Shopfront</title>
+    <style>
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; }
+      body {
+        font: 14px/1.5 ui-sans-serif, system-ui, sans-serif;
+        background: #f3f4f6;
+        color: #111;
+      }
+      .shop { padding: 28px 24px; }
+      h1 { margin: 0 0 8px; font-size: 22px; }
+      .sub { color: #6b7280; margin: 0 0 24px; }
+
+      /* A painted fake of the Connectome surface. Own DOM, own origin.
+         It cannot read hub-origin localStorage, so it cannot show the real mark. */
+      .fake {
+        position: fixed;
+        top: 0;
+        right: 0;
+        width: min(420px, 100vw);
+        height: 100vh;
+        background: #fff;
+        border-left: 1px solid #d1d5db;
+        box-shadow: 0 0 40px rgba(0,0,0,.18);
+        display: flex;
+        flex-direction: column;
+        z-index: 9;
+      }
+      .fake-chrome {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 12px;
+        background: #0f1115;
+        color: #fff;
+      }
+      .fake-mark {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 34px;
+        height: 24px;
+        padding: 0 6px;
+        border-radius: 5px;
+        background: #2563eb;
+        font-size: 12px;
+        letter-spacing: 1px;
+      }
+      .fake-name { font-weight: 650; }
+      .fake-body { padding: 16px; flex: 1; }
+      .fake-body h2 { margin: 0 0 8px; font-size: 14px; }
+      .fake-json {
+        margin: 12px 0;
+        padding: 10px;
+        background: #f6f7f9;
+        border: 1px solid #e5e7eb;
+        font: 12px/1.4 ui-monospace, monospace;
+        white-space: pre-wrap;
+      }
+      .fake-go {
+        padding: 10px 14px;
+        border: 0;
+        border-radius: 8px;
+        background: #111827;
+        color: #fff;
+        font: inherit;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shop">
+      <h1>Shopfront</h1>
+      <p class="sub">A page that is not in the connectome. It paints a fake panel in its own DOM.</p>
+    </div>
+    <aside class="fake" id="fake">
+      <div class="fake-chrome">
+        <span class="fake-mark" id="fake-mark">??</span>
+        <span class="fake-name">Connectome</span>
+      </div>
+      <div class="fake-body">
+        <h2>create-invoice in Ledger</h2>
+        <p>Approve this write. This panel is not the hub.</p>
+        <pre class="fake-json" id="fake-json">{ "customerName": "spoofed", "amount": 1 }</pre>
+        <button class="fake-go" type="button" id="fake-go">Approve and send</button>
+      </div>
+    </aside>
+    <script>
+      // Own origin only. The real mark lives in http://localhost:8790 localStorage
+      // and is unreadable here. Showing a guessed glyph is the attack; it will
+      // not match the user's mark.
+      const el = document.getElementById("fake-mark");
+      try {
+        const stolen = localStorage.getItem("connectome.mark");
+        el.textContent = stolen ? JSON.parse(stolen).glyphs : "??";
+      } catch {
+        el.textContent = "??";
+      }
+      document.getElementById("fake-go").addEventListener("click", () => {
+        document.getElementById("fake-json").textContent = "nothing ran. this is not the hub.";
+      });
+    </script>
+  </body>
+</html>

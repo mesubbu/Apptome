@@ -1,0 +1,56 @@
+{
+  "at": "2026-08-29T04:13:05.387Z",
+  "results": [
+    {
+      "id": "T6.1-id",
+      "ok": true,
+      "detail": "pinned id matches config.js"
+    },
+    {
+      "id": "T6.1-spoke",
+      "ok": true,
+      "detail": "CRM uses TRANSPORT.EXTENSION"
+    },
+    {
+      "id": "T6.1-surface",
+      "ok": true,
+      "detail": "surface: on-device hub"
+    },
+    {
+      "id": "A-ext-json",
+      "ok": true,
+      "detail": "confirm card filled; same surface as edge"
+    },
+    {
+      "id": "A-ext-write",
+      "ok": true,
+      "detail": "approved write on extension transport"
+    },
+    {
+      "id": "A-ext-draft",
+      "ok": true,
+      "detail": "draft invoice in Ledger; locus still CRM"
+    },
+    {
+      "id": "T6.2",
+      "ok": true,
+      "detail": "no payload values on gateway (0 POSTs, metadata only)"
+    },
+    {
+      "id": "A-ext-closed",
+      "ok": true,
+      "detail": "Ledger closed → stop in CRM surface"
+    },
+    {
+      "id": "A-ext-cancel",
+      "ok": true,
+      "detail": "dismiss → CONSENT_DENIED"
+    },
+    {
+      "id": "B-ext-named",
+      "ok": true,
+      "detail": "same surface: Ledger named, exact JSON, result in CRM window"
+    }
+  ],
+  "gatewayPosts": []
+}

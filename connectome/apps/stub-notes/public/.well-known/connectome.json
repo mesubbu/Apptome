@@ -1,0 +1,10 @@
+{
+  "name": "Tick",
+  "icon": "/icon.svg",
+  "launch": "/",
+  "capabilities": [
+    { "name": "start-timer", "summary": "Start timing a piece of work", "write": true, "risk": "low" },
+    { "name": "stop-timer", "summary": "Stop the running timer", "write": true, "risk": "low" },
+    { "name": "list-entries", "summary": "Tracked time entries and durations", "write": false, "risk": "low" }
+  ]
+}

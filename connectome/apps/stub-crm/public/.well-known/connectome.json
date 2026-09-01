@@ -1,0 +1,10 @@
+{
+  "name": "Acme CRM",
+  "icon": "/icon.svg",
+  "launch": "/",
+  "capabilities": [
+    { "name": "get-open-client", "summary": "The client open on screen right now", "write": false, "risk": "low" },
+    { "name": "list-clients", "summary": "Every client, with billable rate", "write": false, "risk": "low" },
+    { "name": "add-note", "summary": "Add a note to a client's record", "write": true, "risk": "low" }
+  ]
+}
