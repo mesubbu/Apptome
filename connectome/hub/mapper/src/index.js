@@ -5,11 +5,20 @@
  * is re-run here so a compromised or buggy client cannot smuggle them in.
  * GET /health. CORS for the surface origin only.
  *
- * Do not import a model runtime. Do not write src/llm-mapper.js here.
+ * TWO MAPPERS, ONE INTERFACE. `llm-mapper.js` runs Workers AI behind AI Gateway
+ * and returns null whenever it cannot answer safely — no `env.AI` binding, model
+ * error, or a reply that fails validation. `static-mapper.js` is deterministic
+ * and always answers. So the LLM can only ever raise the floor, never lower it,
+ * and an account with no AI binding behaves exactly as it did before.
+ *
+ * The hub still imports no model runtime (GrokVision.md §3.2) — it knows a
+ * binding name and an HTTPS endpoint. `env.AI.run()` is request-scoped: it runs
+ * because a user opened a confirm card, and nothing schedules it (§10).
  */
 
 import { assertNoValues } from "../../../packages/protocol/protocol.js";
-import { map } from "./static-mapper.js";
+import { map as staticMap } from "./static-mapper.js";
+import { map as llmMap } from "./llm-mapper.js";
 
 /**
  * The one origin allowed to ask for a mapping. Environment-driven, so the same
@@ -70,7 +79,10 @@ async function handleMap(request, env) {
     return json({ ok: false, error: String(err?.message ?? err) }, 400, env);
   }
 
-  const result = await map(req, env);
+  // The guard above has already run, and llm-mapper runs it again itself before
+  // it touches env.AI. Two independent asserts, because the one that matters is
+  // the one living in the same file as the model call.
+  const result = (await llmMap(req, env)) ?? (await staticMap(req, env));
   return json(result, 200, env);
 }
 

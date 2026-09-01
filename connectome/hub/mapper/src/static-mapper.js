@@ -36,7 +36,12 @@ const SYNONYMS = [
   ["id", "clientid", "customerid"],
 ];
 
-/** Same interface as llm-mapper.js, so the two are swappable at the call site. */
+/**
+ * Same interface as llm-mapper.js, so the two are swappable at the call site.
+ *
+ * This one is the FALLBACK and always answers; llm-mapper.js returns null when
+ * it cannot answer safely. index.js resolves llm first, static second.
+ */
 export async function map(request, _env) {
   const fields = (request?.source?.fields ?? []).map((f) => ({
     path: String(f.path),

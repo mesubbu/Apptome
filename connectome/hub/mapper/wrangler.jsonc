@@ -8,25 +8,38 @@
     // product (GrokVisionResponse.md §4.5). Nothing logged here can contain a
     // field value, because none ever arrives.
     "enabled": true
-  }
+  },
 
   // ------------------------------------------------------------------
-  // Workers AI behind AI Gateway — NOT ENABLED. Left here as the exact
-  // shape of the later step, so nobody has to guess it.
+  // Workers AI behind AI Gateway — ENABLED.
   //
-  // Uncommenting this is the whole "swap in an LLM" change: src/llm-mapper.js
-  // already speaks the same interface as the static mapper and returns null
-  // until `env.AI` exists. The hub keeps knowing only an HTTPS endpoint; it
-  // still never imports a model runtime (GrokVision.md §3.2).
+  // src/llm-mapper.js speaks the same interface as the static mapper and
+  // returns null whenever it cannot answer safely, so src/index.js resolves
+  // `(await llmMap(req, env)) ?? (await staticMap(req, env))`. An account with
+  // no AI binding falls straight through to the deterministic mapper: this
+  // raises the floor and can never lower it.
   //
-  // "ai": {
-  //   "binding": "AI"
-  // },
-  // "vars": {
-  //   // AI Gateway gives caching, rate limits and logs for the mapper calls.
-  //   "AI_GATEWAY": "connectome-mapper",
-  //   "AI_MODEL": "@cf/meta/llama-3.1-8b-instruct"
-  // }
+  // The hub still imports no model runtime (GrokVision.md §3.2) — it knows a
+  // binding name and, through the gateway, an HTTPS endpoint.
+  //
+  // The model sees FIELD PATHS AND TYPES ONLY. assertNoValues runs inside
+  // llm-mapper.js before env.AI is touched, and the tool `description` strings
+  // that mapperRequest() carries are dropped rather than escaped — they are
+  // untrusted text (§6.2), and a prompt is the wrong place for them.
+  // ------------------------------------------------------------------
+  "ai": {
+    "binding": "AI"
+  },
+  "vars": {
+    // AI Gateway gives caching, rate limits and logs for the mapper calls.
+    "AI_GATEWAY": "connectome-mapper",
+    "AI_MODEL": "@cf/meta/llama-3.1-8b-instruct"
+  }
+
+  // §10: env.AI.run() is REQUEST-SCOPED. It runs because the user opened a
+  // confirm card. It proposes a correspondence, never a write, and the user
+  // still approves the exact JSON afterwards (§6.2). That is precisely why this
+  // binding is admissible where the four below are not.
   //
   // Deliberately absent, and CI-enforced absent (ci/distortion-tests.mjs):
   // "browser" (Browser Rendering), "triggers.crons", "queues", "workflows".
