@@ -64,8 +64,8 @@ export default {
 
     // WebSocket: edge transport. A spoke's bridge, or the surface, joining the graph.
     if (url.pathname === "/hub") {
-      if (request.method === "OPTIONS") return apiPreflight(request);
-      const denied = hubJoinDenied(request);
+      if (request.method === "OPTIONS") return apiPreflight(request, env);
+      const denied = hubJoinDenied(request, env);
       if (denied) return denied;
       if (request.headers.get("Upgrade") !== "websocket") {
         return new Response("expected websocket", { status: 426 });
@@ -75,8 +75,8 @@ export default {
 
     // HTTP: graph sync and the consent ledger. Join door is Origin, not *.
     if (url.pathname.startsWith("/api/")) {
-      if (request.method === "OPTIONS") return apiPreflight(request);
-      const denied = apiJoinDenied(request);
+      if (request.method === "OPTIONS") return apiPreflight(request, env);
+      const denied = apiJoinDenied(request, env);
       if (denied) return denied;
       if (url.pathname === "/api/declare" && request.method === "POST") {
         const body = await request.json().catch(() => null);
@@ -87,7 +87,7 @@ export default {
           found = await fetchManifest(body?.origin);
         }
         if (!found.ok) {
-          return withCors(request, json({ ok: false, error: found.error }, found.status));
+          return withCors(request, json({ ok: false, error: found.error }, found.status), env);
         }
         const target = new URL(request.url);
         target.pathname = "/do/declare";
@@ -98,13 +98,13 @@ export default {
             body: JSON.stringify(found.record),
           })
         );
-        return withCors(request, res);
+        return withCors(request, res, env);
       }
       const doPath = url.pathname.replace(/^\/api\//, "/do/");
       const target = new URL(request.url);
       target.pathname = doPath;
       const res = await hub(env, request).fetch(new Request(target, request));
-      return withCors(request, res);
+      return withCors(request, res, env);
     }
 
     return new Response("not found", { status: 404 });
@@ -136,18 +136,20 @@ function cookie(request, name) {
   return hit ? decodeURIComponent(hit.slice(name.length + 1)) : null;
 }
 
-function hubJoinDenied(request) {
+function hubJoinDenied(request, env) {
   const origin = request.headers.get("Origin");
-  if (!isAllowedOrigin(origin)) {
+  if (!isAllowedOrigin(origin, env)) {
     return new Response("origin not allowed", { status: 403 });
   }
   return null;
 }
 
-function apiJoinDenied(request) {
+function apiJoinDenied(request, env) {
   const origin = request.headers.get("Origin");
   if (origin) {
-    return isAllowedApiOrigin(origin) ? null : new Response("origin not allowed", { status: 403 });
+    return isAllowedApiOrigin(origin, env)
+      ? null
+      : new Response("origin not allowed", { status: 403 });
   }
   if (request.method !== "GET") {
     return new Response("origin required", { status: 403 });
@@ -155,9 +157,9 @@ function apiJoinDenied(request) {
   return null;
 }
 
-function apiPreflight(request) {
+function apiPreflight(request, env) {
   const origin = request.headers.get("Origin");
-  if (!isAllowedApiOrigin(origin)) {
+  if (!isAllowedApiOrigin(origin, env)) {
     return new Response(null, { status: 403 });
   }
   return new Response(null, {
@@ -183,10 +185,10 @@ function starPreflight() {
   });
 }
 
-function withCors(request, res) {
+function withCors(request, res, env) {
   const origin = request.headers.get("Origin");
   const headers = new Headers(res.headers);
-  if (isAllowedApiOrigin(origin)) {
+  if (isAllowedApiOrigin(origin, env)) {
     headers.set("access-control-allow-origin", origin);
     headers.set("vary", "Origin");
   }
