@@ -1,4 +1,4 @@
-# Connectome (Apptome) FAQ
+# Apptome FAQ
 
 ### What is Connectome?
 Connectome is a secure, client-side integration hub powered by WebMCP. It allows isolated web applications to talk to each other and share capabilities entirely within your browser, orchestrated by an AI agent, without requiring backend API keys or complex automation servers.
