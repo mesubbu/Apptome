@@ -206,6 +206,7 @@ async function registerTools() {
     await modelContext.registerTool({
       name: "start-timer",
       description: "Starts the timer on a piece of work, optionally under a project code.",
+      annotations: { risk: "low" },
       inputSchema: {
         type: "object",
         properties: {
@@ -225,6 +226,7 @@ async function registerTools() {
     await modelContext.registerTool({
       name: "stop-timer",
       description: "Stops the timer that is currently running and keeps the time entry.",
+      annotations: { risk: "low" },
       inputSchema: {
         type: "object",
         properties: {

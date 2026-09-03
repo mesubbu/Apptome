@@ -24,6 +24,7 @@ import {
   FAILURE_COPY,
   PROV,
   GRANT_SCOPE,
+  TRANSPORT,
   hostLabel,
   describeShape,
   mapperRequest,
@@ -35,6 +36,11 @@ import {
   parseInputSchema,
   edgeKey,
   grantIsLive,
+  confirmKind,
+  riskOf,
+  riskBadge,
+  RISK_COPY,
+  executePathCopy,
 } from "/protocol/protocol.js";
 
 const params = new URLSearchParams(location.search);
@@ -197,7 +203,8 @@ function render() {
   const host = hostMember();
   el("host-name").textContent = host?.name ?? hostLabel(HOST_ORIGIN);
   el("host-origin").textContent = HOST_ORIGIN;
-  el("transport").textContent = state.transport === "extension" ? "on-device hub" : "edge hub";
+  el("transport").textContent =
+    state.transport === TRANSPORT.EXTENSION ? "on-device hub" : "edge hub";
   el("pause").textContent = state.paused ? "Resume" : "Pause";
   el("pause").classList.toggle("danger", state.paused);
   el("paused-banner").hidden = !state.paused;
@@ -451,7 +458,8 @@ function viewDirectory() {
         chip.type = "button";
         chip.textContent = cap.name;
         chip.disabled = state.paused;
-        chip.title = cap.readOnly ? "reads" : "writes";
+        const hint = riskBadge(cap);
+        chip.title = hint.extra ? `${hint.text} · ${hint.extra.text}` : hint.text;
         chip.addEventListener("click", (e) => {
           e.stopPropagation();
           startEdge(member, cap);
@@ -557,34 +565,125 @@ function viewMember(origin) {
   }
 
   for (const cap of member.capabilities) {
-    const row = node("button", `cap ${cap.readOnly ? "read" : "write"}`);
-    row.disabled = state.paused;
-    row.addEventListener("click", () => startEdge(member, cap));
-
-    const head = node("span", "cap-head");
-    const nm = node("span", "cap-name");
-    nm.textContent = cap.name;
-    head.append(nm);
-    const badge = node("span", `badge ${cap.readOnly ? "read" : "write"}`);
-    badge.textContent = cap.readOnly ? "reads" : "writes";
-    head.append(badge);
-    if (cap.untrusted) {
-      const u = node("span", "badge untrusted");
-      u.textContent = "returns user text";
-      u.title = "Values from this tool are untrusted content. They are shown as data, never obeyed.";
-      head.append(u);
-    }
-    row.append(head);
-
-    const desc = node("span", "cap-desc");
-    // Untrusted text (§6.2). Rendered as data, and never sent to a mapper as
-    // anything other than an inert string.
-    desc.textContent = cap.description || "No description offered.";
-    row.append(desc);
-
-    wrap.append(row);
+    wrap.append(capabilityCard(member, cap));
   }
   return wrap;
+}
+
+/**
+ * Inspector, then a use button. The schema is visible before the user starts
+ * an edge (OtherFeaturesGrok.md §5.2). `.cap` stays as the card class so
+ * existing drivers keep finding it; the action is the inner button.
+ */
+function capabilityCard(member, cap) {
+  const card = node("article", `cap ${cap.readOnly ? "read" : "write"}`);
+  card.setAttribute("aria-label", cap.name);
+
+  const head = node("span", "cap-head");
+  const nm = node("span", "cap-name");
+  nm.textContent = cap.name;
+  head.append(nm);
+  appendCapBadges(head, cap);
+  card.append(head);
+
+  const desc = node("span", "cap-desc");
+  desc.textContent = cap.description || "No description offered.";
+  card.append(desc);
+
+  card.append(schemaList(cap));
+
+  const inspect = node("div", "cap-inspect");
+  inspect.append(pText(RISK_COPY[riskOf(cap)].confirm));
+  inspect.append(pText(executePathCopy(state.transport)));
+  const meta = node("p", "p cap-meta");
+  inspect.append(meta);
+  card.append(inspect);
+  fillInspectorMeta(member, cap, meta);
+
+  const use = node("button", "btn cap-use");
+  use.type = "button";
+  use.disabled = state.paused;
+  use.textContent = cap.readOnly ? `Read ${cap.name}` : `Use ${cap.name}`;
+  use.addEventListener("click", () => startEdge(member, cap));
+  card.append(use);
+  // Drivers click `.cap`. The inner button is the accessible action; a click
+  // on the card (not on the button) starts the same edge.
+  card.addEventListener("click", (e) => {
+    if (state.paused) return;
+    if (e.target.closest("button")) return;
+    startEdge(member, cap);
+  });
+  return card;
+}
+
+function appendCapBadges(head, cap) {
+  const badge = riskBadge(cap);
+  const rw = node("span", `badge ${badge.className}`);
+  rw.textContent = badge.text;
+  head.append(rw);
+  if (badge.extra) {
+    const extra = node("span", `badge ${badge.extra.className}`);
+    extra.textContent = badge.extra.text;
+    head.append(extra);
+  }
+  if (cap.untrusted) {
+    const u = node("span", "badge untrusted");
+    u.textContent = "returns user text";
+    u.title = "Values from this tool are untrusted content. They are shown as data, never obeyed.";
+    head.append(u);
+  }
+}
+
+function schemaList(cap) {
+  const schema = parseInputSchema(cap.inputSchema);
+  const props = schema.properties ?? {};
+  const required = new Set(schema.required ?? []);
+  const box = node("div", "cap-schema");
+  const keys = Object.keys(props);
+  if (!keys.length) {
+    const empty = node("p", "p cap-schema-empty");
+    empty.textContent = cap.readOnly
+      ? "No input fields. Opening the app lists what it actually returns."
+      : "No input schema published yet. Opening the app lists the live fields.";
+    box.append(empty);
+    return box;
+  }
+  for (const name of keys) {
+    const spec = props[name] ?? {};
+    const row = node("div", "schema-row");
+    const field = node("span", "schema-name");
+    field.textContent = name;
+    row.append(field);
+    const ty = node("span", "schema-type");
+    ty.textContent = spec.type ?? "any";
+    row.append(ty);
+    if (required.has(name)) {
+      const req = node("span", "badge req");
+      req.textContent = "required";
+      row.append(req);
+    }
+    box.append(row);
+  }
+  return box;
+}
+
+async function fillInspectorMeta(member, cap, dest) {
+  const bits = [];
+  bits.push(member.present ? "open now" : "remembered — open the app to run it");
+  try {
+    const liveHash = await schemaHash(cap.inputSchema);
+    bits.push(`schema ${liveHash.slice(0, 8)}`);
+    const listed = await client.grants();
+    const related = (listed?.grants ?? []).filter(
+      (g) => g.target?.origin === member.origin && g.target?.tool === cap.name && !g.revoked
+    );
+    if (related.some((g) => g.schemaHash && g.schemaHash !== liveHash)) {
+      bits.push("this capability changed since you allowed it");
+    }
+  } catch {
+    /* hash/grants are copy; a miss must not block the inspector */
+  }
+  dest.textContent = bits.join(" · ");
 }
 
 /* ================================================================== *
@@ -597,7 +696,10 @@ async function startEdge(member, cap) {
   // A remote READ is one consented step: name it, run it, show it here. The
   // result stays in the surface. It does NOT flow into the host page's JS —
   // that would be a second, separate edge the user has not asked for (§5.5).
-  if (cap.readOnly) {
+  //
+  // confirmKind never skips a write. Risk is copy, not a door around this card.
+  const kind = confirmKind(cap);
+  if (kind === "read-consent") {
     return go({ name: "read-consent", member, cap });
   }
 
@@ -682,9 +784,11 @@ function viewReadConsent({ member, cap }) {
   const box = node("div", "notice");
   box.append(strongText(`Run ${cap.name} in ${member.name}?`));
   box.append(pText(cap.description || ""));
+  box.append(pText(RISK_COPY[riskOf(cap)].confirm));
+  box.append(pText(executePathCopy(state.transport)));
   box.append(
     pText(
-      `It runs in ${hostLabel(member.origin)}'s own tab, under your own session there. The result is shown here, in this panel. Nothing is written, and ${hostLabel(HOST_ORIGIN)} does not receive it.`
+      `Nothing is written, and ${hostLabel(HOST_ORIGIN)} does not receive it.`
     )
   );
   const row = node("div", "row");
@@ -850,9 +954,16 @@ function viewConfirm(v) {
   wrap.append(steps(WRITE_STEPS, 2));
   wrap.append(crumb(member.name, cap.name));
 
-  const intro = node("div", "notice");
+  const kind = confirmKind(cap);
+  const copy = RISK_COPY[riskOf(cap)];
+  const intro = node("div", copy.loud ? "notice loud" : "notice");
   intro.append(strongText(`${cap.name} in ${member.name}`));
   intro.append(pText(cap.description || ""));
+  // startEdge only opens this view for write-always. Still render the card
+  // if kind is anything else — a skip is not a valid confirm.
+  intro.dataset.confirmKind = kind;
+  intro.append(pText(copy.confirm));
+  intro.append(pText(executePathCopy(state.transport)));
   if (sourceCap) {
     intro.append(
       pText(

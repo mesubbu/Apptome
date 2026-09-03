@@ -176,12 +176,155 @@ export function toolDescriptor(tool, origin) {
     origin: origin ?? tool.origin ?? null,
     readOnly: Boolean(tool.annotations?.readOnlyHint),
     untrusted: Boolean(tool.annotations?.untrustedContentHint),
+    // Copy only. Native Chrome may drop unknown annotation fields; a missing
+    // risk is not a silent write (riskOf / confirmKind).
+    risk: parseRisk(tool.annotations?.risk ?? tool.risk),
   };
 }
 
 /** True when invoking this tool may change the world. Writes always confirm (§6.2). */
 export function isWrite(descriptor) {
   return !descriptor.readOnly;
+}
+
+/* ------------------------------------------------------------------ *
+ * Risk is COPY, never a skip.
+ *
+ * GrokVision.md §4.2 already promised "Risk / write hints → surface copy,
+ * confirm severity." OtherFeaturesGrok.md §5.1: a write still always confirms,
+ * exact JSON. Risk may change the heading, the badge, and how loud the card
+ * is. It may not hide the card. confirmKind never returns a skip.
+ * ------------------------------------------------------------------ */
+
+export const RISK = {
+  READ: "read_only",
+  LOW: "low",
+  MEDIUM: "medium",
+  HIGH: "high",
+  FINANCIAL: "financial",
+};
+
+export const CONFIRM_KIND = {
+  READ: "read-consent",
+  WRITE: "write-always",
+};
+
+export function parseRisk(raw) {
+  if (typeof raw !== "string") return null;
+  const v = raw.trim().toLowerCase().replace(/[-\s]/g, "_").slice(0, 24);
+  if (v === "readonly") return RISK.READ;
+  if (v === RISK.READ || v === RISK.LOW || v === RISK.MEDIUM || v === RISK.HIGH || v === RISK.FINANCIAL) {
+    return v;
+  }
+  return null;
+}
+
+/**
+ * Live readOnlyHint wins. A write that claims read_only is a lie — treat it as
+ * a medium write (loud), not a silent read. Unknown writes are medium, not low.
+ */
+export function riskOf(descriptor) {
+  if (!descriptor || descriptor.readOnly) return RISK.READ;
+  const r = parseRisk(descriptor.risk);
+  if (!r || r === RISK.READ) return RISK.MEDIUM;
+  return r;
+}
+
+/** What the surface must show. Writes always get a card. */
+export function confirmKind(descriptor) {
+  if (descriptor?.readOnly) return CONFIRM_KIND.READ;
+  return CONFIRM_KIND.WRITE;
+}
+
+export const RISK_COPY = {
+  [RISK.READ]: {
+    badge: "reads",
+    badgeClass: "read",
+    confirm:
+      "You will confirm this read by name before it runs. The result stays in this panel.",
+    loud: false,
+  },
+  [RISK.LOW]: {
+    badge: "draft",
+    badgeClass: "draft",
+    confirm:
+      "You will pick a source and approve the exact JSON. This is a draft write — it should not send or charge.",
+    loud: false,
+  },
+  [RISK.MEDIUM]: {
+    badge: "changes data",
+    badgeClass: "changes",
+    confirm: "You will pick a source and approve the exact JSON. This changes data in the other app.",
+    loud: false,
+  },
+  [RISK.HIGH]: {
+    badge: "destructive",
+    badgeClass: "destructive",
+    confirm:
+      "You will pick a source and approve the exact JSON. This cannot be undone from here.",
+    loud: true,
+  },
+  [RISK.FINANCIAL]: {
+    badge: "charges money",
+    badgeClass: "financial",
+    confirm:
+      "You will pick a source and approve the exact JSON. This charges money. This cannot be undone from here.",
+    loud: true,
+  },
+};
+
+/** Reads stay "reads". Undeclared writes stay "writes". Declared risk is a second badge. */
+export function riskBadge(descriptor) {
+  if (!descriptor || descriptor.readOnly) {
+    return { text: "reads", className: "read", extra: null };
+  }
+  const declared = parseRisk(descriptor.risk);
+  if (!declared || declared === RISK.READ) {
+    return { text: "writes", className: "write", extra: null };
+  }
+  const copy = RISK_COPY[declared];
+  return {
+    text: "writes",
+    className: "write",
+    extra: { text: copy.badge, className: copy.badgeClass },
+  };
+}
+
+export function executePathCopy(transport) {
+  if (transport === TRANSPORT.EXTENSION) {
+    return "Runs in that app's own page, in your session. The hub is this device and never sees the values.";
+  }
+  return "Runs in that app's own page, in your session. The hub relays ciphertext and never sees the values.";
+}
+
+/**
+ * Live tools win on schema and readOnly. If the live tool has no risk (native
+ * Chrome may drop unknown annotations), keep the last-seen / poster hint so
+ * the surface still has copy.
+ */
+export function withPreservedRisk(nextCaps, prevCaps) {
+  const prev = new Map((prevCaps ?? []).map((c) => [c?.name, parseRisk(c?.risk)]));
+  return (nextCaps ?? []).map((c) => {
+    if (parseRisk(c?.risk)) return c;
+    const old = prev.get(c?.name);
+    return old ? { ...c, risk: old } : c;
+  });
+}
+
+/** Sanitise a connectome.json capability list. Poster, never authority. */
+export function posterCapabilities(list) {
+  if (!Array.isArray(list)) return [];
+  return list
+    .slice(0, 50)
+    .map((c) => ({
+      name: String(c?.name ?? ""),
+      description: String(c?.summary ?? c?.description ?? ""),
+      inputSchema: { type: "object", properties: {} },
+      readOnly: c?.write === false,
+      untrusted: false,
+      risk: parseRisk(c?.risk),
+    }))
+    .filter((c) => c.name);
 }
 
 /** Stable id for one directed pair of tools. This is the unit of consent (§6.1). */
@@ -238,15 +381,7 @@ export function parseConnectomeManifest(json, origin) {
       return null;
     }
   })();
-  const capabilities = Array.isArray(json?.capabilities)
-    ? json.capabilities.slice(0, 50).map((c) => ({
-        name: String(c?.name ?? ""),
-        description: String(c?.summary ?? c?.description ?? ""),
-        inputSchema: { type: "object", properties: {} },
-        readOnly: c?.write === false,
-        untrusted: false,
-      })).filter((c) => c.name)
-    : [];
+  const capabilities = posterCapabilities(json?.capabilities);
   return {
     origin,
     identity: {

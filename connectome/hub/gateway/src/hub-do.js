@@ -32,6 +32,8 @@ import {
   FAILURE,
   failure,
   parseInputSchema,
+  parseRisk,
+  withPreservedRisk,
 } from "./vendor/protocol.js";
 import { isAllowedOrigin, roleForOrigin } from "./origins.js";
 import { AUDIT_KEEP, auditWatermark, emitAuditMetric } from "./metrics.js";
@@ -166,9 +168,10 @@ export class HubDO {
         existing.source === MEMBER_SOURCE.OBSERVED ? MEMBER_SOURCE.OBSERVED : rec.source;
       // blocked is app opt-out (tools=()): member stays, tools are empty.
       // An empty unblocked HELLO keeps last-seen tools (the tab closed / not yet registered).
+      const prevCaps = JSON.parse(existing.capabilities);
       const caps = blocked
         ? []
-        : (capabilities?.length ? capabilities : JSON.parse(existing.capabilities)) ?? [];
+        : withPreservedRisk(capabilities?.length ? capabilities : prevCaps, prevCaps);
       this.sql.exec(
         `UPDATE members SET name=?, name_attested=?, icon=?, launch=?, capabilities=?, source=?,
          last_seen=?, blocked=? WHERE origin=?`,
@@ -586,6 +589,7 @@ function publicCapability(tool) {
     inputSchema: parseInputSchema(tool.inputSchema),
     readOnly: Boolean(tool.readOnly),
     untrusted: Boolean(tool.untrusted),
+    risk: parseRisk(tool.risk),
   };
 }
 

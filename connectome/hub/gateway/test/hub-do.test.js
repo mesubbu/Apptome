@@ -256,3 +256,36 @@ describe("surface ↔ spoke relay", () => {
     surface.close();
   });
 });
+
+describe("risk is copy", () => {
+  it("HELLO without a risk keeps the declared poster hint and the live schema", async () => {
+    const hub = stub("risk-copy");
+    await doJson(hub, "/do/declare", {
+      origin: LEDGER,
+      identity: { name: "Ledger" },
+      capabilities: [{ name: "create-invoice", readOnly: false, risk: "medium" }],
+    });
+    const ws = await openSocket(hub, { session: "led-risk", origin: LEDGER });
+    const graphWait = waitMessage(ws, (m) => m.t === "graph");
+    ws.send(
+      JSON.stringify({
+        t: "hello",
+        identity: { name: "Ledger" },
+        tools: [
+          {
+            name: "create-invoice",
+            readOnly: false,
+            inputSchema: { type: "object", properties: { amount: { type: "number" } } },
+          },
+        ],
+      })
+    );
+    await graphWait;
+    const graph = await doGet(hub, "/do/graph");
+    const ledger = (graph.members ?? []).find((m) => m.origin === LEDGER);
+    const cap = (ledger?.capabilities ?? []).find((c) => c.name === "create-invoice");
+    expect(cap?.risk).toBe("medium");
+    expect(cap?.inputSchema?.properties?.amount).toBeTruthy();
+    ws.close();
+  });
+});

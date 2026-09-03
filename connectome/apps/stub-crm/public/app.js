@@ -207,6 +207,7 @@ async function registerTools() {
     await modelContext.registerTool({
       name: "add-note",
       description: "Adds a short note to a client's record in the CRM.",
+      annotations: { risk: "low" },
       inputSchema: {
         type: "object",
         properties: {

@@ -400,6 +400,58 @@ function assertWritePath() {
   assert(/node\("div", "member-card"\)/.test(src), "member-card is a div (chips cannot nest in a button)");
   assert(/setAttribute\("role", "button"\)/.test(src), "member-card keeps a button role");
   assert(/member-chip/.test(src) && /startEdge\(member, cap\)/.test(src), "directory chips go through startEdge");
+  assert(/confirmKind\(/.test(start), "startEdge consults confirmKind");
+  assert(!/\briskOf\b/.test(doWriteBody) && !/\.risk\b/.test(doWriteBody), "doWrite does not consult risk");
+  assert(/function capabilityCard/.test(src), "member view inspects a capability before using it");
+  assert(/function schemaList/.test(src), "inspector shows inputSchema before the user starts an edge");
+}
+
+/**
+ * Risk is copy. A write still always confirms. OtherFeaturesGrok.md §5.1.
+ */
+async function assertRiskCopy() {
+  const protocol = await import(pathToFileURL(join(ROOT, "packages/protocol/protocol.js")).href);
+  const { confirmKind, riskOf, parseRisk, parseConnectomeManifest, withPreservedRisk, RISK, CONFIRM_KIND } =
+    protocol;
+
+  assert(confirmKind({ readOnly: true }) === CONFIRM_KIND.READ, "reads take the named-consent step");
+  assert(confirmKind({ readOnly: false, risk: "low" }) === CONFIRM_KIND.WRITE, "a draft write still confirms");
+  assert(
+    confirmKind({ readOnly: false, risk: "financial" }) === CONFIRM_KIND.WRITE,
+    "a financial write still confirms"
+  );
+  assert(
+    confirmKind({ readOnly: false }) === CONFIRM_KIND.WRITE,
+    "an undeclared write still confirms"
+  );
+  assert(!/none/.test(Function.prototype.toString.call(confirmKind)), "confirmKind has no skip");
+
+  assert(riskOf({ readOnly: true, risk: "financial" }) === RISK.READ, "live readOnlyHint wins over a poster risk");
+  assert(riskOf({ readOnly: false, risk: "low" }) === RISK.LOW, "declared low is copy for a write");
+  assert(riskOf({ readOnly: false, risk: "read_only" }) === RISK.MEDIUM, "a write claiming read_only is treated as medium, not silent");
+  assert(riskOf({ readOnly: false }) === RISK.MEDIUM, "unknown writes are medium, not skipped");
+  assert(parseRisk("charges-money") === null, "unknown risk strings are dropped, not invented");
+  assert(parseRisk("read-only") === RISK.READ, "hyphenated read-only is accepted as copy");
+
+  const poster = parseConnectomeManifest(
+    {
+      name: "Ledger",
+      capabilities: [{ name: "create-invoice", summary: "Draft", write: true, risk: "medium" }],
+    },
+    "https://ledger.example"
+  );
+  assert(poster.capabilities[0].risk === "medium", "parseConnectomeManifest keeps poster risk");
+  assert(poster.capabilities[0].readOnly === false, "write: true is not a read");
+
+  const preserved = withPreservedRisk(
+    [{ name: "create-invoice", readOnly: false, risk: null }],
+    [{ name: "create-invoice", risk: "medium" }]
+  );
+  assert(preserved[0].risk === "medium", "live tools without a risk keep the last-seen hint");
+
+  const src = read(join(ROOT, "hub/surface/public/surface.js"));
+  assert(/confirmKind\(cap\)/.test(src), "surface calls confirmKind on the live descriptor");
+  assert(/RISK_COPY\[riskOf\(cap\)\]/.test(src), "confirm copy comes from riskOf, not a per-tool string");
 }
 
 /**
@@ -976,6 +1028,7 @@ function assertDeploy() {
 
   assert(/vitest run/.test(rootPkg), "pnpm check / test runs the workerd suite");
   assert(/"check":\s*"pnpm sync &&/.test(rootPkg), "pnpm check vendors before the suites");
+  assert(/"doctor":\s*"node scripts\/doctor.mjs"/.test(rootPkg), "pnpm doctor is a first-class command");
   assert(/sync-bridge\.mjs/.test(deploy), "deploy vendors packages/ before wrangler");
   assert(/"test:e2e"/.test(rootPkg), "pnpm test:e2e is a first-class command");
   assert(
@@ -1059,6 +1112,7 @@ banHandlerCallback();
 await assertOrigins();
 assertBootTags();
 assertWritePath();
+await assertRiskCopy();
 await assertMapperGuard();
 assertStubsExecute();
 assertJoinDoor();

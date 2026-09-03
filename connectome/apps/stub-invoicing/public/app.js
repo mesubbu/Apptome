@@ -168,6 +168,7 @@ async function registerTools() {
     await modelContext.registerTool({
       name: "create-invoice",
       description: "Creates a draft invoice for a customer. Does not send or charge.",
+      annotations: { risk: "medium" },
       inputSchema: {
         type: "object",
         properties: {

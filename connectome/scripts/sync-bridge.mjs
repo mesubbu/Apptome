@@ -17,7 +17,7 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
-const copies = [
+export const COPIES = [
   // Gateway Worker serves these as text (wrangler Text modules).
   ["packages/protocol/protocol.js", "hub/gateway/src/vendor/protocol.js.txt"],
   ["packages/bridge/bridge.js", "hub/gateway/src/vendor/bridge.js.txt"],
@@ -34,23 +34,29 @@ const copies = [
   ["packages/protocol/protocol.js", "extension/protocol/protocol.js"],
 ];
 
-let failed = 0;
-
-for (const [from, to] of copies) {
-  const destination = resolve(root, to);
-  try {
-    await mkdir(dirname(destination), { recursive: true });
-    await copyFile(resolve(root, from), destination);
-    console.log(`copied  ${from}  ->  ${to}`);
-  } catch (err) {
-    failed += 1;
-    console.error(`FAILED  ${from}  ->  ${to}: ${err?.message ?? err}`);
+export async function syncBridge() {
+  let failed = 0;
+  for (const [from, to] of COPIES) {
+    const destination = resolve(root, to);
+    try {
+      await mkdir(dirname(destination), { recursive: true });
+      await copyFile(resolve(root, from), destination);
+      console.log(`copied  ${from}  ->  ${to}`);
+    } catch (err) {
+      failed += 1;
+      console.error(`FAILED  ${from}  ->  ${to}: ${err?.message ?? err}`);
+    }
   }
+  if (failed > 0) {
+    console.error(`sync-bridge: ${failed} of ${COPIES.length} copies failed`);
+    process.exitCode = failed;
+    return failed;
+  }
+  console.log(`sync-bridge: ${COPIES.length} files in sync`);
+  return 0;
 }
 
-if (failed > 0) {
-  console.error(`sync-bridge: ${failed} of ${copies.length} copies failed`);
-  process.exit(1);
+if (resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
+  await syncBridge();
+  if (process.exitCode) process.exit(process.exitCode);
 }
-
-console.log(`sync-bridge: ${copies.length} files in sync`);

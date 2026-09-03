@@ -24,6 +24,8 @@
  * untrusted JSON through a different path.
  */
 
+import { posterCapabilities } from "./vendor/protocol.js";
+
 export const MANIFEST_TIMEOUT_MS = 5_000;
 /** KV expirationTtl floor is 60s. Short on purpose: this is a poster, not a grant. */
 export const MANIFEST_TTL_SECONDS = 60;
@@ -208,16 +210,4 @@ function sameOriginOnly(url, origin) {
   }
 }
 
-function posterCapabilities(list) {
-  if (!Array.isArray(list)) return [];
-  return list
-    .slice(0, 50)
-    .map((c) => ({
-      name: String(c?.name ?? ""),
-      description: String(c?.summary ?? c?.description ?? ""),
-      inputSchema: { type: "object", properties: {} },
-      readOnly: c?.write === false,
-      untrusted: false,
-    }))
-    .filter((c) => c.name);
-}
+

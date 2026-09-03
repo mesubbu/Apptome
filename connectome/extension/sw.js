@@ -168,6 +168,7 @@ async function syncGraph() {
             inputSchema: tool.inputSchema,
             readOnly: Boolean(tool.readOnly),
             untrusted: Boolean(tool.untrusted),
+            risk: tool.risk ?? null,
           })),
       blocked: Boolean(t.blocked),
     }));
