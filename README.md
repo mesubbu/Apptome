@@ -7,7 +7,30 @@ Connectome is a **WebMCP-powered integration hub** that imagines the future of t
 
 *This project is a submission for the WebMCP Hackathon.*
 
-## 🚀 Try It Out
+## 💻 Running Locally (Demo Mode)
+
+Want to see the entire mesh (Gateway, Mapper, Surface, and the three Stub Apps) running on your own machine? You can run the entire Connectome architecture locally with a single command.
+
+1. Clone the repository:
+   ```bash
+   git clone <your-repo-url>
+   ```
+2. Navigate into the connectome directory:
+   ```bash
+   cd connectome
+   ```
+3. Install dependencies using pnpm:
+   ```bash
+   pnpm install
+   ```
+4. Start the local mesh:
+   ```bash
+   pnpm run dev
+   ```
+
+This will spin up all 6 local Cloudflare Workers and print the localhost URLs to your terminal. When running locally (`ENVIRONMENT=local`), the Turnstile security pairing is completely bypassed, so you can test the WebMCP execution flows immediately without needing a Cloudflare account.
+
+## 🚀 Test It Out ( for demonstration only)
 
 We have deployed three WebMCP-enabled "spoke" applications and the Connectome Hub for live testing.
 
@@ -39,28 +62,6 @@ Connectome leverages the **Model Context Protocol for Web (WebMCP)** to allow hu
 - `connectome/hub/surface/` - The cross-origin UI sidebar.
 - `connectome/packages/bridge/` - The client-side WebMCP bridge and polyfill.
 
-## 💻 Running Locally (Demo Mode)
-
-Want to see the entire mesh (Gateway, Mapper, Surface, and the three Stub Apps) running on your own machine? You can run the entire Connectome architecture locally with a single command.
-
-1. Clone the repository:
-   ```bash
-   git clone <your-repo-url>
-   ```
-2. Navigate into the connectome directory:
-   ```bash
-   cd connectome
-   ```
-3. Install dependencies using pnpm:
-   ```bash
-   pnpm install
-   ```
-4. Start the local mesh:
-   ```bash
-   pnpm run dev
-   ```
-
-This will spin up all 6 local Cloudflare Workers and print the localhost URLs to your terminal. When running locally (`ENVIRONMENT=local`), the Turnstile security pairing is completely bypassed, so you can test the WebMCP execution flows immediately without needing a Cloudflare account.
 
 ## 📄 License
 
