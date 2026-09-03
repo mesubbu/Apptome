@@ -1,4 +1,4 @@
-# Connectome (Apptome)
+# Apptome : a Connectome for Apps
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 **Open Source License:** This project is open source and licensed under the [MIT License](LICENSE). 
