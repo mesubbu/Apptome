@@ -31,6 +31,7 @@ import {
   GRANT_SCOPE,
   FAILURE,
   failure,
+  parseInputSchema,
 } from "./vendor/protocol.js";
 import { isAllowedOrigin, roleForOrigin } from "./origins.js";
 import { AUDIT_KEEP, auditWatermark, emitAuditMetric } from "./metrics.js";
@@ -582,20 +583,24 @@ function publicCapability(tool) {
   return {
     name: tool.name,
     description: tool.description,
-    inputSchema: tool.inputSchema,
+    inputSchema: parseInputSchema(tool.inputSchema),
     readOnly: Boolean(tool.readOnly),
     untrusted: Boolean(tool.untrusted),
   };
 }
 
 function rowToMember(row) {
+  const caps = JSON.parse(row.capabilities ?? "[]").map((c) => ({
+    ...c,
+    inputSchema: parseInputSchema(c.inputSchema),
+  }));
   return {
     origin: row.origin,
     name: row.name,
     nameAttested: Boolean(row.name_attested),
     icon: row.icon,
     launch: row.launch,
-    capabilities: JSON.parse(row.capabilities ?? "[]"),
+    capabilities: caps,
     source: row.source,
     firstSeen: row.first_seen,
     lastSeen: row.last_seen,

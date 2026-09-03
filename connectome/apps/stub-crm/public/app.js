@@ -7,7 +7,8 @@
  * document.modelContext and stops. That is the entire join contract.
  */
 
-const clients = [
+const STORE = "connectome.stub.crm";
+const DEFAULT_CLIENTS = [
   {
     clientId: "c_1042",
     name: "River North Studio",
@@ -36,8 +37,30 @@ const clients = [
   },
 ];
 
-let openClientId = clients[0].clientId;
-let noteSeq = 0;
+function loadState() {
+  try {
+    const raw = sessionStorage.getItem(STORE);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed.clients) || !parsed.clients.length) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function saveState() {
+  try {
+    sessionStorage.setItem(STORE, JSON.stringify({ clients, openClientId, noteSeq }));
+  } catch {
+    /* quota / private mode */
+  }
+}
+
+const saved = loadState();
+let clients = saved?.clients ?? DEFAULT_CLIENTS.map((c) => ({ ...c, notes: [...c.notes] }));
+let openClientId = saved?.openClientId ?? clients[0].clientId;
+let noteSeq = Number(saved?.noteSeq) || 0;
 let flashNoteId = null;
 
 const listEl = document.getElementById("client-list");
@@ -86,6 +109,7 @@ function renderList() {
       button.append(el("span", "name", client.name), el("span", "meta", `${client.currency} ${client.billableRate}/hr`));
       button.addEventListener("click", () => {
         openClientId = client.clientId;
+        saveState();
         flashNoteId = null;
         render();
       });
@@ -199,6 +223,7 @@ async function registerTools() {
         const entry = { noteId: nextNoteId(), text, at: new Date().toISOString() };
         client.notes.unshift(entry);
         openClientId = client.clientId;
+        saveState();
         flashNoteId = entry.noteId;
         render();
         return { noteId: entry.noteId, clientId: client.clientId };

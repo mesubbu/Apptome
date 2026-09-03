@@ -63,6 +63,13 @@ async function joinDoorHttp() {
   assert(r.status === 200, `surface Origin POST /api/pause → 200 (got ${r.status})`);
   assert(r.acao === "http://localhost:8790", `POST /api/pause echoes surface Origin, not * (got ${r.acao})`);
 
+  r = await httpStatus(pause, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "http://localhost:8787" },
+    body: JSON.stringify({ paused: true }),
+  });
+  assert(r.status === 403, `spoke Origin POST /api/pause → 403 (got ${r.status})`);
+
   r = await httpStatus(grants, { headers: { origin: "http://evil.example" } });
   assert(r.status === 403, `unlisted Origin GET /api/grants → 403 (got ${r.status})`);
 

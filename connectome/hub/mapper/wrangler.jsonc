@@ -11,25 +11,19 @@
   },
 
   // ------------------------------------------------------------------
-  // Workers AI behind AI Gateway — ENABLED.
+  // Workers AI behind AI Gateway — production only (env.production below).
   //
-  // src/llm-mapper.js speaks the same interface as the static mapper and
-  // returns null whenever it cannot answer safely, so src/index.js resolves
-  // `(await llmMap(req, env)) ?? (await staticMap(req, env))`. An account with
-  // no AI binding falls straight through to the deterministic mapper: this
-  // raises the floor and can never lower it.
-  //
-  // The hub still imports no model runtime (GrokVision.md §3.2) — it knows a
-  // binding name and, through the gateway, an HTTPS endpoint.
+  // The top-level config is what `pnpm dev` and a missing-account laptop boot.
+  // Binding AI here makes wrangler demand credentials and crash the mesh
+  // (FlashSay2ndPass N8). llm-mapper.js already returns null when env.AI is
+  // absent, so local is the deterministic mapper. Production restates the
+  // binding. The hub still imports no model runtime (GrokVision.md §3.2).
   //
   // The model sees FIELD PATHS AND TYPES ONLY. assertNoValues runs inside
   // llm-mapper.js before env.AI is touched, and the tool `description` strings
   // that mapperRequest() carries are dropped rather than escaped — they are
   // untrusted text (§6.2), and a prompt is the wrong place for them.
   // ------------------------------------------------------------------
-  "ai": {
-    "binding": "AI"
-  },
   "vars": {
     // AI Gateway gives caching, rate limits and logs for the mapper calls.
     "AI_GATEWAY": "connectome-mapper",

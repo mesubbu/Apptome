@@ -8,12 +8,35 @@
  * document.modelContext and stops. That is the entire join contract.
  */
 
-const entries = [
+const STORE = "connectome.stub.tick";
+const DEFAULT_ENTRIES = [
   { entryId: "t_5501", label: "Wireframe review", projectCode: "RNS-14", seconds: 4320, startedAt: null },
   { entryId: "t_5498", label: "Morning standup", projectCode: "INT", seconds: 900, startedAt: null },
 ];
 
-let entrySeq = 0;
+function loadState() {
+  try {
+    const raw = sessionStorage.getItem(STORE);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed.entries) || !parsed.entries.length) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function saveState() {
+  try {
+    sessionStorage.setItem(STORE, JSON.stringify({ entries, entrySeq }));
+  } catch {
+    /* quota / private mode */
+  }
+}
+
+const saved = loadState();
+const entries = saved?.entries ?? DEFAULT_ENTRIES.map((e) => ({ ...e }));
+let entrySeq = Number(saved?.entrySeq) || 0;
 let runningDurEl = null;
 
 const clockEl = document.getElementById("clock");
@@ -136,6 +159,7 @@ function startTimer({ label, projectCode }) {
     startedAt: Date.now(),
   };
   entries.unshift(entry);
+  saveState();
   render();
   return entry;
 }
@@ -145,6 +169,7 @@ function stopTimer(timerId) {
   if (!entry || entry.startedAt === null) throw new Error(`no running timer: ${timerId}`);
   entry.seconds = elapsed(entry);
   entry.startedAt = null;
+  saveState();
   render();
   return entry;
 }

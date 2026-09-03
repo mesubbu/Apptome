@@ -32,6 +32,7 @@ import {
   provenanced,
   validateArgs,
   schemaHash,
+  parseInputSchema,
   edgeKey,
   grantIsLive,
 } from "/protocol/protocol.js";
@@ -141,6 +142,7 @@ function wireChrome() {
   el("close").addEventListener("click", () => client.closeSurface());
   el("home").addEventListener("click", () => go({ name: "directory" }));
   el("grants-link").addEventListener("click", () => openGrants());
+  el("activity-link").addEventListener("click", () => openActivity());
   el("search").addEventListener("input", (e) => {
     state.filter = e.target.value;
     render();
@@ -217,6 +219,8 @@ function render() {
       return body.append(viewResult(state.view));
     case "grants":
       return body.append(viewGrants(state.view));
+    case "activity":
+      return body.append(viewActivity(state.view));
     case "failure":
       return body.append(viewFailure(state.view));
     case "pair":
@@ -764,6 +768,7 @@ function viewSourcePick({ member, cap, reads }) {
  * app data leaving this device.
  */
 async function prepareConfirm({ member, cap, sourceCap, payload }) {
+  cap.inputSchema = parseInputSchema(cap.inputSchema);
   let mapping = {};
   let mapperName = "none";
   let notes = "";
@@ -859,8 +864,9 @@ function viewConfirm(v) {
   wrap.append(intro);
 
   const fields = node("div", "fields");
-  const props = cap.inputSchema?.properties ?? {};
-  const required = new Set(cap.inputSchema?.required ?? []);
+  const schema = parseInputSchema(cap.inputSchema);
+  const props = schema.properties ?? {};
+  const required = new Set(schema.required ?? []);
 
   for (const [name, spec] of Object.entries(props)) {
     const current = args[name] ?? provenanced(undefined, PROV.MISSING, null, false);
@@ -1168,9 +1174,11 @@ function viewGrants(v) {
     line.textContent = `${hostLabel(g.source.origin)} · ${g.source.tool}  →  ${hostLabel(g.target.origin)} · ${g.target.tool}`;
     t.append(line);
     const meta = node("div", "grant-meta");
+    const uses = Number(g.uses) || 0;
+    const usesLabel = uses === 0 ? "not used yet" : uses === 1 ? "used 1 time" : `used ${uses} times`;
     meta.textContent = g.revoked
       ? `revoked ${new Date(g.revoked).toLocaleString()}`
-      : `${g.scope} · allowed ${new Date(g.granted).toLocaleString()}`;
+      : `${g.scope} · allowed ${new Date(g.granted).toLocaleString()} · ${usesLabel}`;
     t.append(meta);
     row.append(t);
     if (!g.revoked) {
@@ -1209,6 +1217,45 @@ function viewGrants(v) {
   });
   tools.append(exp);
   wrap.append(tools);
+  return wrap;
+}
+
+async function openActivity() {
+  const res = await client.audit();
+  go({ name: "activity", audit: res?.audit ?? [] });
+}
+
+function viewActivity(v) {
+  const wrap = node("div", "stack");
+  wrap.append(backBtn({ name: "directory" }));
+  wrap.append(crumb("Your connectome", "what ran"));
+
+  const note = node("div", "notice");
+  note.append(
+    pText(
+      "Metadata only — which edge, what kind of event, whether it forwarded or was refused. Never the JSON you approved, never a result."
+    )
+  );
+  wrap.append(note);
+
+  const rows = Array.isArray(v.audit) ? v.audit : [];
+  if (!rows.length) {
+    wrap.append(empty("Nothing yet", "Grants, relays, pauses and forgotten apps appear here as they happen."));
+    return wrap;
+  }
+
+  for (const row of rows) {
+    const item = node("div", "grant");
+    const t = node("div", "grant-text");
+    const line = node("div", "grant-line");
+    line.textContent = [row.kind, row.edge, row.outcome].filter(Boolean).join(" · ");
+    t.append(line);
+    const meta = node("div", "grant-meta");
+    meta.textContent = row.at ? new Date(row.at).toLocaleString() : "";
+    t.append(meta);
+    item.append(t);
+    wrap.append(item);
+  }
   return wrap;
 }
 

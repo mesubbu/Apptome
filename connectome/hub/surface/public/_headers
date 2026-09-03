@@ -1,2 +1,3 @@
 /*
   Permissions-Policy: tools=()
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://challenges.cloudflare.com; style-src 'self'; img-src 'self' data:; frame-src https://challenges.cloudflare.com; connect-src 'self' http: https: ws: wss:; object-src 'none'; base-uri 'self'; form-action 'self'

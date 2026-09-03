@@ -8,7 +8,7 @@
  *   3. Changed create-invoice inputSchema → SCHEMA_DRIFT (T7.3 check, in the surface).
  */
 import { installPolyfill, installTestingSurface } from "../packages/bridge/webmcp-polyfill.js";
-import { FAILURE, failure, schemaHash } from "../packages/protocol/protocol.js";
+import { FAILURE, failure, schemaHash, parseInputSchema } from "../packages/protocol/protocol.js";
 
 let failed = 0;
 let passed = 0;
@@ -137,6 +137,15 @@ assert(missing.ok === false && missing.code === FAILURE.TOOL_NOT_FOUND, `no crea
 
 const stillList = await invokeNamed(doc, "list-invoices");
 assert(stillList.ok === true, "list-invoices still runs after the swap");
+
+const parsedFromString = parseInputSchema(JSON.stringify(SCHEMA_A));
+assert(parsedFromString.properties.customerName, "parseInputSchema parses a native JSON string");
+assert(parseInputSchema("not-json").properties, "parseInputSchema does not throw on broken JSON");
+assert(parseInputSchema("not-json").type === "object", "broken JSON becomes an empty object schema");
+assert(
+  (await schemaHash(JSON.stringify(SCHEMA_A))) === (await schemaHash(SCHEMA_A)),
+  "schemaHash is identical for a stringified schema and the object"
+);
 
 const oldHash = await schemaHash(SCHEMA_A);
 const newHash = await schemaHash(SCHEMA_B);

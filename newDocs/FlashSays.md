@@ -138,3 +138,82 @@ Ordered by value-to-effort. Everything here must still pass `GrokVision.md` §8 
 
 
 
+
+---
+
+## Part 6 — Local Verification, Real Browser Findings, Gaps, Mistakes & Suggestions (2026-09-02)
+
+### 1. Executive Summary of Local Verification
+
+The entire Connectome mesh — consisting of all 6 distinct local services — was booted and tested locally:
+- **CRM Spoke**: `http://localhost:8787`
+- **Ledger Invoicing Spoke**: `http://localhost:8788`
+- **Tick Time Tracking Spoke**: `http://localhost:8789`
+- **Surface Iframe Service**: `http://localhost:8790`
+- **Gateway Hub Worker & HubDO**: `http://localhost:8791`
+- **Field Mapper Service**: `http://localhost:8792`
+
+**Automated Test Suite Status**: **288 / 288 tests passing**:
+- `ci/distortion-tests.mjs`: 254 / 254 passed
+- `ci/provide-context.mjs`: 13 / 13 passed
+- `vitest` Cloudflare Workers Pool suite: 21 / 21 passed (8 gateway + 9 hub-do + 4 mapper)
+
+**End-to-End Live Browser Automation**:
+An automated CDP runner (`scratch/e2e-runner.mjs`) was built using raw Chrome DevTools Protocol over WebSockets and isolated world execution (`Page.createIsolatedWorld`), driving Chromium without external test runner bloat. The complete 8-step user flow was executed, verified, and captured in screenshots.
+
+---
+
+### 2. Captured E2E Screenshots
+
+| Step | Description | Screenshot Link | Key Verified Invariants |
+|---|---|---|---|
+| **Step 1** | CRM Initial View | [01_crm_initial.png](file:///home/subbu/Downloads/Projects/0BACKUP/Apptome/scratch/screenshots/01_crm_initial.png) | Open client (River North Studio, $180/hr, USD); vertical Connectome badge mounted. |
+| **Step 2** | Surface Directory | [02_crm_surface_directory.png](file:///home/subbu/Downloads/Projects/0BACKUP/Apptome/scratch/screenshots/02_crm_surface_directory.png) | 420px iframe at `:8790`; anti-spoof mark `★★`; rooted header `IN Acme CRM`; transport pill `edge hub`; Ledger `open now`. |
+| **Step 3** | Source Pick View | [03_source_pick_view.png](file:///home/subbu/Downloads/Projects/0BACKUP/Apptome/scratch/screenshots/03_source_pick_view.png) | Step 2 of 3 (`Pick the source`); shows CRM read capabilities (`get-open-client`, `list-clients`). |
+| **Step 4** | Exact Confirm Card | [04_confirm_card_exact_json.png](file:///home/subbu/Downloads/Projects/0BACKUP/Apptome/scratch/screenshots/04_confirm_card_exact_json.png) | Step 3 of 3 (`Check & approve`); provenance tags (`read from localhost:8787`); exact mapped JSON preview. |
+| **Step 5** | Sealed Invoke & Result | [05_result_view_in_crm.png](file:///home/subbu/Downloads/Projects/0BACKUP/Apptome/scratch/screenshots/05_result_view_in_crm.png) | Locus preserved: `You're still in Acme CRM · http://localhost:8787`; result data shows created draft invoice `INV-1001`. |
+| **Step 6** | Ledger Live Verification | [06_ledger_invoice_created.png](file:///home/subbu/Downloads/Projects/0BACKUP/Apptome/scratch/screenshots/06_ledger_invoice_created.png) | Direct inspection of Ledger tab showing newly created draft invoice `INV-1001` for River North Studio, $180.00 USD, DRAFT. |
+| **Step 7** | Kill Switch (Pause) | [07_surface_paused.png](file:///home/subbu/Downloads/Projects/0BACKUP/Apptome/scratch/screenshots/07_surface_paused.png) | Yellow warning banner: `Your connectome is paused. Nothing can run until you resume it.`; red `Resume` button. |
+| **Step 8** | Tab Close & Offline State | [08_ledger_offline.png](file:///home/subbu/Downloads/Projects/0BACKUP/Apptome/scratch/screenshots/08_ledger_offline.png) | Ledger tab closed; presence dot in directory immediately flips to gray `not open`. |
+
+---
+
+### 3. Gaps & Discovered Incompatibilities in Real Browser Runtime
+
+#### Gap 7 — Chromium Native WebMCP `inputSchema` Stringification
+- **The Finding**: In real Chromium with native WebMCP active, `document.modelContext.getTools()` returns `tool.inputSchema` serialized as a JSON string (`"{\"type\":\"object\",\"properties\":{...}}"`), rather than a parsed JavaScript object literal.
+- **The Failure**: In `protocol.js` (`toolDescriptor`) and `surface.js` (`prepareConfirm`), `cap.inputSchema?.properties` returned `undefined`. This caused:
+  1. The confirm card to think target tools had zero properties.
+  2. The mapper to report `matched 0/0 target fields by name; 0 need a human`.
+  3. The resulting mapped invocation payload to collapse to `{}`.
+- **The Fix**: Added automatic JSON normalization:
+  - In `packages/protocol/protocol.js` inside `toolDescriptor(tool, origin)`: if `typeof tool.inputSchema === "string"`, run `JSON.parse(tool.inputSchema)`.
+  - In `hub/gateway/src/hub-do.js` inside `publicCapability` and `rowToMember`: parse stringified `inputSchema` before caching or returning.
+  - In `hub/surface/public/surface.js` inside `prepareConfirm` and `viewConfirm`: defensively parse `cap.inputSchema` if received as a string.
+
+#### Gap 8 — Chromium Native `executeTool` Input Argument Serialization
+- **The Finding**: In Chromium's native WebMCP, calling `document.modelContext.executeTool(registeredTool, args)` expects arguments serialized as a JSON string (`JSON.stringify(args)`). Passing an object literal triggers an immediate `UnknownError: Failed to parse input arguments`. Furthermore, if required arguments are missing, the native internal validator also rejects the call with `Failed to parse input arguments`.
+- **The Failure**: The polyfill in `webmcp-polyfill.js` initially accepted object literals, but when running against Chromium's native implementation, invocations failed at the spoke bridge.
+- **The Fix**:
+  - In `packages/bridge/bridge.js` inside `handleInvoke`: execute `executeTool(registered, JSON.stringify(args ?? {}))` with fallback to `args ?? {}`.
+  - Parse the return value with `JSON.parse(data)` if returned as a string by native Chrome.
+  - In `packages/bridge/webmcp-polyfill.js`: support both stringified JSON and object literals in `executeTool`.
+
+#### Gap 9 — Local Development Environment & Wrangler EROFS
+- **The Finding**: When running `wrangler dev` in sandboxed or containerized environments where the user's `$HOME/.wrangler` directory is read-only or restricted, wrangler crashes attempting to write debug logs to `/home/subbu/.wrangler/logs/...` with `EROFS: read-only file system`.
+- **The Solution**: Explicitly set `HOME` and `WRANGLER_HOME` environment variables to a writable workspace directory (e.g. `scratch/home`), and set `WRANGLER_LOG=none`.
+
+#### Gap 10 — Mapper Unauthenticated Workers AI Loop
+- **The Finding**: In local development without Cloudflare API credentials, `wrangler dev` running `hub/mapper` fails when calling `@cf/meta/llama-3.1-8b-instruct`, throwing `Uncaught (in response) Error: Workers AI requires authentication`.
+- **The Solution**: Added `hub/mapper/wrangler.test.jsonc` without AI bindings, allowing the local dev environment to fall back gracefully to `static-mapper.js` as designed by `GrokVision.md` §2.2 ("The product is the surface, not the reasoner").
+
+---
+
+### 4. Suggestions & Future Enhancements
+
+1. **Persist Spoke Demo State in `sessionStorage`**:
+   Currently, the demo spokes (Ledger, CRM) store items in module-scoped memory arrays (`let invoices = []`). A user refreshing the Ledger tab loses their newly drafted invoices. Adding `sessionStorage` fallback in `apps/stub-invoicing/public/app.js` will keep draft invoices visible across tab reloads during live demos.
+2. **First-Class E2E Test Command (`pnpm test:e2e`)**:
+   Incorporate `scratch/e2e-runner.mjs` into `connectome/package.json` as `pnpm test:e2e`. The raw WebSocket CDP approach avoids heavy Puppeteer/Playwright dependencies while ensuring full cross-origin frame access via `Page.createIsolatedWorld`.
+3. **Automated Bridge Synchronization Guard**:
+   Add a check in `ci/distortion-tests.mjs` that compares `packages/protocol/protocol.js` and `packages/bridge/bridge.js` against their vendored destinations (`hub/gateway/src/vendor/`, `hub/surface/public/protocol/`, `extension/vendor/`), failing CI if a developer modifies a source package without running `node scripts/sync-bridge.mjs`.

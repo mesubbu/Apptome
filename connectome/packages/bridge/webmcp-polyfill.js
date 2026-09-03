@@ -138,7 +138,10 @@ export function installPolyfill(doc = document) {
       }
       // Executes in this document's own world, under this origin's own session.
       // That is the whole point: the user is already signed in here (§6.1).
-      return entry.tool.execute(args ?? {});
+      // Chrome native executeTool takes a JSON string; the IDL takes an object.
+      // Accept both so the page bridge can stringify-first without a second run.
+      const resolvedArgs = typeof args === "string" ? (args.trim() ? JSON.parse(args) : {}) : (args ?? {});
+      return entry.tool.execute(resolvedArgs);
     },
 
     ontoolchange: null,

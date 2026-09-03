@@ -70,6 +70,8 @@ const buildEnv = {
   CONNECTOME_SPOKE_ORIGINS: urls.spokes,
 };
 
+const vendored = await run(process.execPath, [resolve(root, "scripts/sync-bridge.mjs")], root, buildEnv);
+if (vendored !== 0) process.exit(vendored || 1);
 const sync = await run(process.execPath, [resolve(root, "scripts/build-env.mjs")], root, buildEnv);
 if (sync !== 0) process.exit(sync || 1);
 

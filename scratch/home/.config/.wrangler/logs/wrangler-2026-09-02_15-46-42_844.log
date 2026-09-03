@@ -1,0 +1,166 @@
+
+--- 2026-09-02T15:46:46.342Z debug
+🪵  Writing logs to "/home/subbu/Downloads/Projects/0BACKUP/Apptome/scratch/home/.config/.wrangler/logs/wrangler-2026-09-02_15-46-42_844.log"
+---
+
+--- 2026-09-02T15:46:46.342Z warn
+▲ [WARNING] Proxy environment variables detected. We'll use your proxy for fetch requests.
+
+
+---
+
+--- 2026-09-02T15:46:46.739Z debug
+.env file not found at "/home/subbu/Downloads/Projects/0BACKUP/Apptome/connectome/apps/stub-notes/.env". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2026-09-02T15:46:46.740Z debug
+.env file not found at "/home/subbu/Downloads/Projects/0BACKUP/Apptome/connectome/apps/stub-notes/.env.local". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2026-09-02T15:46:47.000Z log
+
+ ⛅️ wrangler 4.127.1
+────────────────────
+---
+
+--- 2026-09-02T15:46:47.132Z debug
+setting config
+---
+
+--- 2026-09-02T15:46:47.133Z debug
+Updating config... undefined undefined
+---
+
+--- 2026-09-02T15:46:47.164Z debug
+Metrics dispatcher: Posting data {"deviceId":"f58915be-3f65-4b52-972b-267e607c74ec","event":"wrangler command started","timestamp":1788364007163,"properties":{"amplitude_session_id":1788364007005,"amplitude_event_id":0,"wranglerVersion":"4.127.1","wranglerMajorVersion":4,"wranglerMinorVersion":127,"wranglerPatchVersion":1,"osPlatform":"Linux","osVersion":"#30~24.04.1-Ubuntu SMP PREEMPT_DYNAMIC Fri Aug  7 13:27:52 UTC 2","nodeVersion":25,"isFirstUsage":false,"configFileType":"none","isCI":false,"isPagesCI":false,"isWorkersCI":false,"isInteractive":true,"hasAssets":false,"agent":"antigravity","argsUsed":["inspectorPort","port"],"argsCombination":"inspectorPort, port","sanitizedCommand":"dev","sanitizedArgs":{},"currentAgentSkillsInstalled":null}}
+---
+
+--- 2026-09-02T15:46:47.655Z debug
+local dev variables file not found at ".dev.vars". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2026-09-02T15:46:47.660Z debug
+.env file not found at "/home/subbu/Downloads/Projects/0BACKUP/Apptome/connectome/apps/stub-notes/.env". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2026-09-02T15:46:47.662Z debug
+.env file not found at "/home/subbu/Downloads/Projects/0BACKUP/Apptome/connectome/apps/stub-notes/.env.local". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2026-09-02T15:46:48.872Z debug
+Metrics dispatcher: Failed to send request: Forbidden
+---
+
+--- 2026-09-02T15:46:49.779Z debug
+RemoteRuntimeController teardown beginning...
+---
+
+--- 2026-09-02T15:46:49.780Z debug
+RemoteRuntimeController teardown complete
+---
+
+--- 2026-09-02T15:46:49.824Z log
+⎔ Starting local server...
+---
+
+--- 2026-09-02T15:46:50.719Z debug
+[InspectorProxyWorker] handleProxyControllerIncomingMessage {"type":"reloadStart"}
+---
+
+--- 2026-09-02T15:46:51.158Z debug
+[InspectorProxyWorker] handleProxyControllerIncomingMessage {"type":"reloadComplete","proxyData":{"userWorkerUrl":{"protocol":"http:","hostname":"127.0.0.1","port":"44117"},"userWorkerInspectorUrl":{"protocol":"ws:","hostname":"127.0.0.1","port":"34447","pathname":"/core:user:stub-notes"},"userWorkerInnerUrlOverrides":{"protocol":"http:"},"headers":{"MF-Proxy-Shared-Secret":"91dc6a89-8021-4e7a-8b24-665d30189ee3"},"liveReload":false,"proxyLogsToController":false}}
+---
+
+--- 2026-09-02T15:46:51.162Z debug
+[InspectorProxyWorker] reconnectRuntimeWebSocket
+---
+
+--- 2026-09-02T15:46:51.171Z debug
+[InspectorProxyWorker] NEW RUNTIME WEBSOCKET http://127.0.0.1:34447/core:user:stub-notes
+---
+
+--- 2026-09-02T15:46:51.191Z debug
+[InspectorProxyWorker] RUNTIME INCOMING MESSAGE {
+  method: 'Runtime.executionContextCreated',
+  params: {
+    context: {
+      id: 399203073,
+      origin: '',
+      name: 'Worker',
+      uniqueId: '-7186596832860088588.-6128662919661721944'
+    }
+  }
+}
+---
+
+--- 2026-09-02T15:46:51.204Z debug
+[InspectorProxyWorker] SEND TO DEVTOOLS {"method":"Runtime.executionContextsCleared"}
+---
+
+--- 2026-09-02T15:46:51.221Z debug
+[InspectorProxyWorker] RUNTIME WEBSOCKET OPENED
+---
+
+--- 2026-09-02T15:46:51.225Z debug
+[InspectorProxyWorker] SEND TO RUNTIME {"method":"Runtime.enable","id":100000001}
+---
+
+--- 2026-09-02T15:46:51.228Z debug
+[InspectorProxyWorker] RUNTIME INCOMING MESSAGE { id: 100000001, result: {} }
+---
+
+--- 2026-09-02T15:47:01.166Z debug
+[InspectorProxyWorker] SEND TO RUNTIME {"method":"Runtime.getIsolateId","id":100000002}
+---
+
+--- 2026-09-02T15:47:01.173Z debug
+[InspectorProxyWorker] RUNTIME INCOMING MESSAGE { id: 100000002, result: { id: '88f169b055d8e151' } }
+---
+
+--- 2026-09-02T15:47:11.227Z debug
+[InspectorProxyWorker] SEND TO RUNTIME {"method":"Runtime.getIsolateId","id":100000003}
+---
+
+--- 2026-09-02T15:47:11.235Z debug
+[InspectorProxyWorker] RUNTIME INCOMING MESSAGE { id: 100000003, result: { id: '88f169b055d8e151' } }
+---
+
+--- 2026-09-02T15:47:21.177Z debug
+[InspectorProxyWorker] SEND TO RUNTIME {"method":"Runtime.getIsolateId","id":100000004}
+---
+
+--- 2026-09-02T15:47:21.181Z debug
+[InspectorProxyWorker] RUNTIME INCOMING MESSAGE { id: 100000004, result: { id: '88f169b055d8e151' } }
+---
+
+--- 2026-09-02T15:47:31.184Z debug
+[InspectorProxyWorker] SEND TO RUNTIME {"method":"Runtime.getIsolateId","id":100000005}
+---
+
+--- 2026-09-02T15:47:31.186Z debug
+[InspectorProxyWorker] RUNTIME INCOMING MESSAGE { id: 100000005, result: { id: '88f169b055d8e151' } }
+---
+
+--- 2026-09-02T15:47:41.185Z debug
+[InspectorProxyWorker] SEND TO RUNTIME {"method":"Runtime.getIsolateId","id":100000006}
+---
+
+--- 2026-09-02T15:47:41.188Z debug
+[InspectorProxyWorker] RUNTIME INCOMING MESSAGE { id: 100000006, result: { id: '88f169b055d8e151' } }
+---
+
+--- 2026-09-02T15:47:51.191Z debug
+[InspectorProxyWorker] SEND TO RUNTIME {"method":"Runtime.getIsolateId","id":100000007}
+---
+
+--- 2026-09-02T15:47:51.193Z debug
+[InspectorProxyWorker] RUNTIME INCOMING MESSAGE { id: 100000007, result: { id: '88f169b055d8e151' } }
+---
+
+--- 2026-09-02T15:48:01.196Z debug
+[InspectorProxyWorker] SEND TO RUNTIME {"method":"Runtime.getIsolateId","id":100000008}
+---
+
+--- 2026-09-02T15:48:01.199Z debug
+[InspectorProxyWorker] RUNTIME INCOMING MESSAGE { id: 100000008, result: { id: '88f169b055d8e151' } }
+---

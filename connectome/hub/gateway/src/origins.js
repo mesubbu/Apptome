@@ -10,7 +10,10 @@
  * gateway must not carry localhost on its allowlist just because it inherited
  * it, and an operator who lists three origins has said what the allowlist is.
  *
- * T6.2 may add chrome-extension://<EXT_ID> to /api/* only. Not here. Not /hub.
+ * T6.2 adds chrome-extension://<EXT_ID> to /api/* only. Not here. Not /hub.
+ * Spokes join /hub (they are WebSocket clients). They do not call /api/* —
+ * that door is the surface and the extension, because a listed spoke Origin
+ * plus a SameSite=Lax pairing cookie is otherwise graph-admin (FlashSay2ndPass N2).
  * T3.3's hostile stub is a fourth origin and must stay off this list — it is
  * absent from the defaults, and nothing here can add it back.
  */
@@ -52,7 +55,7 @@ export function isAllowedOrigin(origin, env) {
 }
 
 export function isAllowedApiOrigin(origin, env) {
-  return isAllowedOrigin(origin, env) || origin === EXTENSION_ORIGIN;
+  return origin === surfaceOrigin(env) || origin === EXTENSION_ORIGIN;
 }
 
 /** Bound at the socket. Query-param role is not authority. */

@@ -1,0 +1,127 @@
+
+--- 2026-09-02T15:46:45.863Z debug
+🪵  Writing logs to "/home/subbu/Downloads/Projects/0BACKUP/Apptome/scratch/home/.config/.wrangler/logs/wrangler-2026-09-02_15-46-42_971.log"
+---
+
+--- 2026-09-02T15:46:45.863Z warn
+▲ [WARNING] Proxy environment variables detected. We'll use your proxy for fetch requests.
+
+
+---
+
+--- 2026-09-02T15:46:46.215Z debug
+.env file not found at "/home/subbu/Downloads/Projects/0BACKUP/Apptome/connectome/hub/mapper/.env". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2026-09-02T15:46:46.219Z debug
+.env file not found at "/home/subbu/Downloads/Projects/0BACKUP/Apptome/connectome/hub/mapper/.env.local". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2026-09-02T15:46:46.722Z log
+
+ ⛅️ wrangler 4.127.1
+────────────────────
+---
+
+--- 2026-09-02T15:46:46.875Z debug
+setting config
+---
+
+--- 2026-09-02T15:46:46.876Z debug
+Updating config... undefined undefined
+---
+
+--- 2026-09-02T15:46:46.948Z debug
+Metrics dispatcher: Posting data {"deviceId":"f58915be-3f65-4b52-972b-267e607c74ec","event":"wrangler command started","timestamp":1788364006948,"properties":{"amplitude_session_id":1788364006724,"amplitude_event_id":0,"wranglerVersion":"4.127.1","wranglerMajorVersion":4,"wranglerMinorVersion":127,"wranglerPatchVersion":1,"osPlatform":"Linux","osVersion":"#30~24.04.1-Ubuntu SMP PREEMPT_DYNAMIC Fri Aug  7 13:27:52 UTC 2","nodeVersion":25,"isFirstUsage":false,"configFileType":"none","isCI":false,"isPagesCI":false,"isWorkersCI":false,"isInteractive":true,"hasAssets":false,"agent":"antigravity","argsUsed":["inspectorPort","port","var"],"argsCombination":"inspectorPort, port, var","sanitizedCommand":"dev","sanitizedArgs":{},"currentAgentSkillsInstalled":null}}
+---
+
+--- 2026-09-02T15:46:47.288Z debug
+local dev variables file not found at ".dev.vars". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2026-09-02T15:46:47.288Z debug
+.env file not found at "/home/subbu/Downloads/Projects/0BACKUP/Apptome/connectome/hub/mapper/.env". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2026-09-02T15:46:47.296Z debug
+.env file not found at "/home/subbu/Downloads/Projects/0BACKUP/Apptome/connectome/hub/mapper/.env.local". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2026-09-02T15:46:47.331Z log
+Your Worker has access to the following bindings:
+---
+
+--- 2026-09-02T15:46:47.334Z log
+Binding                Resource                    Mode
+---
+
+--- 2026-09-02T15:46:47.339Z log
+env.METRICS            Analytics Engine Dataset    local
+  connectome-map
+---
+
+--- 2026-09-02T15:46:47.340Z log
+env.AI                 AI                          remote
+---
+
+--- 2026-09-02T15:46:47.344Z log
+env.RATE_LIMIT         Rate Limit                  local
+  30 requests/10s
+---
+
+--- 2026-09-02T15:46:47.348Z log
+env.AI_GATEWAY         Environment Variable        local
+  "connectome-mapper"
+---
+
+--- 2026-09-02T15:46:47.348Z log
+env.AI_MODEL           Environment Variable        local
+  "@cf/meta/llama-3.1-8b-instruct"
+---
+
+--- 2026-09-02T15:46:47.358Z log
+env.SURFACE_ORIGIN     Environment Variable        local
+  "(hidden)"
+---
+
+--- 2026-09-02T15:46:47.358Z log
+env.ALLOWED_ORIGINS    Environment Variable        local
+  "(hidden)"
+---
+
+--- 2026-09-02T15:46:47.360Z log
+env.ENVIRONMENT        Environment Variable        local
+  "(hidden)"
+---
+
+--- 2026-09-02T15:46:47.371Z log
+
+---
+
+--- 2026-09-02T15:46:48.237Z debug
+Metrics dispatcher: Failed to send request: Forbidden
+---
+
+--- 2026-09-02T15:46:49.426Z debug
+RemoteRuntimeController teardown beginning...
+---
+
+--- 2026-09-02T15:46:49.426Z debug
+RemoteRuntimeController teardown complete
+---
+
+--- 2026-09-02T15:46:49.479Z log
+⎔ Establishing remote connection...
+---
+
+--- 2026-09-02T15:46:49.503Z log
+Attempting to login via OAuth...
+---
+
+--- 2026-09-02T15:46:49.571Z log
+Opening a link in your default browser: https://dash.cloudflare.com/oauth2/auth?response_type=code&client_id=54d11594-84e4-41aa-b438-e81b8fa78ee7&redirect_uri=http%3A%2F%2Flocalhost%3A8976%2Foauth%2Fcallback&scope=account%3Aread%20user%3Aread%20workers%3Awrite%20workers_kv%3Awrite%20workers_routes%3Awrite%20workers_scripts%3Awrite%20workers_tail%3Aread%20d1%3Awrite%20pages%3Awrite%20zone%3Aread%20ssl_certs%3Awrite%20ai%3Awrite%20ai-search%3Awrite%20ai-search%3Arun%20websearch.run%20agent-memory%3Awrite%20queues%3Awrite%20pipelines%3Awrite%20secrets_store%3Awrite%20artifacts%3Awrite%20flagship%3Awrite%20containers%3Awrite%20cloudchamber%3Awrite%20connectivity%3Aadmin%20email_routing%3Awrite%20email_sending%3Awrite%20browser%3Awrite%20challenge-widgets.write%20offline_access&state=KTX91uzi4TQg_PxiP2PhmDPZsUQMgzKr&code_challenge=vbdIc8wspyLLgRQoYvG7PW0E37LwUqvaLPx0_De17I4&code_challenge_method=S256
+---
+
+--- 2026-09-02T15:46:50.212Z debug
+[InspectorProxyWorker] handleProxyControllerIncomingMessage {"type":"reloadStart"}
+---

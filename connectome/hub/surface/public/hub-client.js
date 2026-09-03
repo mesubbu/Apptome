@@ -27,7 +27,6 @@ import {
   seal,
   unseal,
   latestPeerId,
-  parseConnectomeManifest,
 } from "/protocol/protocol.js";
 
 /**
@@ -261,8 +260,9 @@ export class HubClient {
   }
 
   /**
-   * T4.3: user typed an origin. This device fetches the poster
-   * (`credentials: omit`). Absence is not a name. The hub stores the poster.
+   * T4.3: user typed an origin. The gateway fetches the poster
+   * (`credentials: omit`, timeout, byte cap). Absence is not a name.
+   * This document only sends the origin — never a client-built identity.
    */
   async declare(originRaw) {
     let origin;
@@ -271,22 +271,13 @@ export class HubClient {
     } catch {
       return { ok: false, error: "that is not an origin" };
     }
-    let json;
-    try {
-      const res = await fetch(new URL("/.well-known/connectome.json", origin), {
-        credentials: "omit",
-        cache: "no-store",
-      });
-      if (!res.ok) {
-        return { ok: false, error: "no connectome.json at that origin — we don't invent a name" };
-      }
-      json = await res.json();
-    } catch {
-      return { ok: false, error: "no connectome.json at that origin — we don't invent a name" };
-    }
-    const record = parseConnectomeManifest(json, origin);
-    if (this.transport === TRANSPORT.EXTENSION) return this.#toExtension({ t: "declare", ...record });
-    return this.#api("/api/declare", record);
+    if (this.transport === TRANSPORT.EXTENSION) return this.#toExtension({ t: "declare", origin });
+    return this.#api("/api/declare", { origin });
+  }
+
+  async audit() {
+    if (this.transport === TRANSPORT.EXTENSION) return this.#toExtension({ t: "audit" });
+    return this.#api("/api/audit");
   }
 
   async pause(paused) {

@@ -92,6 +92,8 @@ async function handleSurface(msg) {
       return exportAll();
     case "declare":
       return declareApp(msg);
+    case "audit":
+      return listAudit();
     case M.OPEN_APP:
       return openApp(msg.origin);
     case "close-surface":
@@ -287,38 +289,22 @@ async function setPaused(paused) {
 }
 
 async function declareApp(msg) {
+  const remote = await api("/api/declare", { origin: msg.origin });
+  if (remoteDown(remote)) {
+    return { ok: false, error: "no connectome.json at that origin — we don't invent a name" };
+  }
   const store = await loadStore();
   await saveStore({
     forgotten: (store.forgotten ?? []).filter((o) => o !== msg.origin),
   });
-  const remote = await api("/api/declare", {
-    origin: msg.origin,
-    identity: msg.identity,
-    capabilities: msg.capabilities,
-  });
   const g = await graph();
-  if (remoteDown(remote)) {
-    const now = Date.now();
-    const members = [
-      ...(g.members ?? []).filter((m) => m.origin !== msg.origin),
-      {
-        origin: msg.origin,
-        name: msg.identity?.name || hostLabel(msg.origin),
-        nameAttested: Boolean(msg.identity?.name),
-        icon: msg.identity?.icon ?? null,
-        launch: msg.identity?.launch ?? `${msg.origin}/`,
-        capabilities: msg.capabilities ?? [],
-        source: "declared",
-        firstSeen: now,
-        lastSeen: now,
-        blocked: false,
-        present: Boolean(tabForOrigin(msg.origin)),
-      },
-    ];
-    await saveStore({ members });
-    return { ok: true, members, paused: Boolean((await loadStore()).paused) };
-  }
   return { ...remote, ...g };
+}
+
+async function listAudit() {
+  const remote = await api("/api/audit");
+  if (remote?.audit) return remote;
+  return { audit: [] };
 }
 
 async function exportAll() {

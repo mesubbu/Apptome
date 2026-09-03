@@ -117,12 +117,10 @@ export default {
         const stub = await hub(env, request);
         if (!stub) return withCors(request, pairingRequired(env), env);
         const body = await request.json().catch(() => null);
-        let found;
-        if (body?.identity && body?.origin) {
-          found = { ok: true, record: body };
-        } else {
-          found = await fetchManifest(body?.origin, env);
-        }
+        // Always re-fetch the poster. A client-supplied identity is a claim,
+        // not evidence — HubClient used to POST a parsed record and skip this
+        // path, so the timeout/cap/KV in manifest.js never ran (FlashSay2ndPass N6).
+        const found = await fetchManifest(body?.origin, env);
         if (!found.ok) {
           return withCors(request, json({ ok: false, error: found.error }, found.status), env);
         }

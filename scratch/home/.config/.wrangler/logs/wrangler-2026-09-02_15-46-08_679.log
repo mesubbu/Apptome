@@ -1,0 +1,70 @@
+
+--- 2026-09-02T15:46:09.540Z debug
+🪵  Writing logs to "/home/subbu/Downloads/Projects/0BACKUP/Apptome/scratch/home/.config/.wrangler/logs/wrangler-2026-09-02_15-46-08_679.log"
+---
+
+--- 2026-09-02T15:46:09.539Z warn
+▲ [WARNING] Proxy environment variables detected. We'll use your proxy for fetch requests.
+
+
+---
+
+--- 2026-09-02T15:46:09.620Z debug
+.env file not found at "/home/subbu/Downloads/Projects/0BACKUP/Apptome/connectome/apps/stub-crm/.env". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2026-09-02T15:46:09.622Z debug
+.env file not found at "/home/subbu/Downloads/Projects/0BACKUP/Apptome/connectome/apps/stub-crm/.env.local". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2026-09-02T15:46:09.688Z log
+
+ ⛅️ wrangler 4.127.1
+────────────────────
+---
+
+--- 2026-09-02T15:46:09.725Z debug
+setting config
+---
+
+--- 2026-09-02T15:46:09.726Z debug
+Updating config... undefined undefined
+---
+
+--- 2026-09-02T15:46:09.744Z debug
+Metrics dispatcher: Posting data {"deviceId":"f58915be-3f65-4b52-972b-267e607c74ec","event":"wrangler command started","timestamp":1788363969744,"properties":{"amplitude_session_id":1788363969689,"amplitude_event_id":0,"wranglerVersion":"4.127.1","wranglerMajorVersion":4,"wranglerMinorVersion":127,"wranglerPatchVersion":1,"osPlatform":"Linux","osVersion":"#30~24.04.1-Ubuntu SMP PREEMPT_DYNAMIC Fri Aug  7 13:27:52 UTC 2","nodeVersion":25,"packageManager":"pnpm","isFirstUsage":true,"configFileType":"none","isCI":false,"isPagesCI":false,"isWorkersCI":false,"isInteractive":true,"hasAssets":false,"agent":"antigravity","argsUsed":["port"],"argsCombination":"port","sanitizedCommand":"dev","sanitizedArgs":{},"currentAgentSkillsInstalled":null}}
+---
+
+--- 2026-09-02T15:46:09.812Z debug
+local dev variables file not found at ".dev.vars". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2026-09-02T15:46:09.812Z debug
+.env file not found at "/home/subbu/Downloads/Projects/0BACKUP/Apptome/connectome/apps/stub-crm/.env". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2026-09-02T15:46:09.812Z debug
+.env file not found at "/home/subbu/Downloads/Projects/0BACKUP/Apptome/connectome/apps/stub-crm/.env.local". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2026-09-02T15:46:09.921Z debug
+Metrics dispatcher: Failed to send request: Forbidden
+---
+
+--- 2026-09-02T15:46:10.108Z debug
+RemoteRuntimeController teardown beginning...
+---
+
+--- 2026-09-02T15:46:10.108Z debug
+RemoteRuntimeController teardown complete
+---
+
+--- 2026-09-02T15:46:10.118Z log
+⎔ Starting local server...
+---
+
+--- 2026-09-02T15:46:10.395Z error
+✘ [ERROR] *** Fatal uncaught kj::Exception: kj/async-io-unix.c++:941: failed: ::bind(sockfd, &addr.generic, addrlen): Address already in use; toString() = 127.0.0.1:9229
+
+
+---

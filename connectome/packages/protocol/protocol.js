@@ -138,6 +138,27 @@ export function latestPeerId(keys, origin, exceptId = null) {
  * ------------------------------------------------------------------ */
 
 /**
+ * Chrome native WebMCP stringifies `inputSchema` on getTools(); the polyfill
+ * and the community IDL keep it as an object. One helper, used everywhere a
+ * schema is read, hashed, or rendered — never parse-or-keep-the-string, never
+ * parse-or-throw. A broken native string becomes an empty object schema.
+ */
+export function parseInputSchema(inputSchema) {
+  let schema = inputSchema;
+  if (typeof schema === "string") {
+    try {
+      schema = JSON.parse(schema);
+    } catch {
+      return { type: "object", properties: {} };
+    }
+  }
+  if (!schema || typeof schema !== "object" || Array.isArray(schema)) {
+    return { type: "object", properties: {} };
+  }
+  return schema;
+}
+
+/**
  * Normalise a WebMCP `RegisteredTool` into something safe to persist and render.
  *
  * The 19 Aug 2026 draft puts `origin` and owner `window` on each returned tool.
@@ -151,7 +172,7 @@ export function toolDescriptor(tool, origin) {
   return {
     name: String(tool.name ?? ""),
     description: String(tool.description ?? ""),
-    inputSchema: tool.inputSchema ?? { type: "object", properties: {} },
+    inputSchema: parseInputSchema(tool.inputSchema),
     origin: origin ?? tool.origin ?? null,
     readOnly: Boolean(tool.annotations?.readOnlyHint),
     untrusted: Boolean(tool.annotations?.untrustedContentHint),
@@ -174,7 +195,7 @@ export function edgeKey(source, target) {
  * (GrokVisionResponse.md §3, "No versioning anywhere".)
  */
 export async function schemaHash(inputSchema) {
-  const canonical = canonicalJson(inputSchema ?? {});
+  const canonical = canonicalJson(parseInputSchema(inputSchema));
   const bytes = new TextEncoder().encode(canonical);
   const digest = await crypto.subtle.digest("SHA-256", bytes);
   return b64url(new Uint8Array(digest)).slice(0, 22);

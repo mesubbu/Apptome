@@ -41,6 +41,11 @@ describe("join door (t1-check)", () => {
     expect(res.headers.get("access-control-allow-origin")).not.toBe("*");
   });
 
+  it("refuses a listed spoke Origin on POST /api/pause", async () => {
+    const res = await api("/api/pause", { method: "POST", origin: CRM, body: { paused: true } });
+    expect(res.status).toBe(403);
+  });
+
   it("refuses an unlisted Origin on GET /api/grants", async () => {
     const res = await api("/api/grants", { origin: EVIL });
     expect(res.status).toBe(403);
@@ -74,6 +79,20 @@ describe("join door (t1-check)", () => {
     expect(ws).toBeTruthy();
     ws.accept();
     ws.close();
+  });
+});
+
+describe("declare poster", () => {
+  it("does not store a client-supplied identity when the origin has no manifest", async () => {
+    const res = await api("/api/declare", {
+      method: "POST",
+      origin: SURFACE,
+      body: { origin: "https://not-a-connectome.example", identity: { name: "Fake Ledger" } },
+    });
+    expect(res.ok).toBe(false);
+    const body = await res.json();
+    expect(body.ok).toBe(false);
+    expect(body.error).toMatch(/origin|manifest|connectome/i);
   });
 });
 

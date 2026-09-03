@@ -311,6 +311,10 @@ async function assertOrigins() {
   assert(o.isAllowedOrigin("http://localhost:8789", undefined), "default allowlist admits Tick");
   assert(o.isAllowedOrigin(o.DEFAULT_SURFACE_ORIGIN, undefined), "default allowlist admits the surface");
   assert(o.roleForOrigin(o.DEFAULT_SURFACE_ORIGIN, undefined) === "surface", "default surface origin gets the surface role");
+  assert(!o.isAllowedApiOrigin("http://localhost:8787", undefined), "CRM cannot reach /api/*");
+  assert(!o.isAllowedApiOrigin("http://localhost:8788", undefined), "Ledger cannot reach /api/*");
+  assert(!o.isAllowedApiOrigin("http://localhost:8789", undefined), "Tick cannot reach /api/*");
+  assert(o.isAllowedApiOrigin(o.DEFAULT_SURFACE_ORIGIN, undefined), "surface may reach /api/*");
 
   // The hostile stub is not a member, by default or by source.
   assert(!o.isAllowedOrigin("http://localhost:8793", undefined), "hostile stub :8793 cannot join /hub");
@@ -557,6 +561,11 @@ function assertJoinDoor() {
   const origins = read(join(ROOT, "hub/gateway/src/origins.js"));
   assert(/function hubJoinDenied/.test(gw) && /isAllowedOrigin/.test(gw), "gateway allowlists Origin on /hub");
   assert(/function apiJoinDenied/.test(gw) && /isAllowedApiOrigin/.test(gw), "gateway allowlists Origin on /api/*");
+  assert(
+    /origin === surfaceOrigin\(env\) \|\| origin === EXTENSION_ORIGIN/.test(origins) ||
+      /surfaceOrigin\(env\) \|\| origin === EXTENSION_ORIGIN/.test(origins),
+    "/api/* is surface + extension, not spokes"
+  );
   assert(/request\.headers\.get\("Origin"\)/.test(doSrc), "session origin is the Origin header");
   assert(
     !/url\.searchParams\.get\(\s*["']origin["']\s*\)/.test(stripComments(doSrc)),
@@ -726,6 +735,7 @@ async function assertHardening() {
   assert(/redirect:\s*"error"/.test(manifestSrc), "manifest fetch still refuses redirects");
   assert(/MANIFESTS/.test(manifestSrc), "manifest cache is the MANIFESTS KV binding");
   assert(/fetchManifest\(body\?\.origin,\s*env\)/.test(gw), "declare passes env so the cache is reachable");
+  assert(!/body\?\.identity && body\?\.origin/.test(gw), "declare does not trust a client-supplied poster");
   assert(manifest.MANIFEST_TTL_SECONDS >= 60, "KV TTL is at least the platform floor of 60s");
   assert(manifest.MANIFEST_TTL_SECONDS <= 300, "KV TTL stays short — this is a poster, not a grant");
   assert(manifest.MANIFEST_MAX_BYTES <= 32 * 1024, "manifest body cap is small");
@@ -965,6 +975,9 @@ function assertDeploy() {
   assert(/hostile/.test(topology) && /not include/i.test(topology) || /Not deployed/.test(topology), "topology doc says the hostile stub is not deployed");
 
   assert(/vitest run/.test(rootPkg), "pnpm check / test runs the workerd suite");
+  assert(/"check":\s*"pnpm sync &&/.test(rootPkg), "pnpm check vendors before the suites");
+  assert(/sync-bridge\.mjs/.test(deploy), "deploy vendors packages/ before wrangler");
+  assert(/"test:e2e"/.test(rootPkg), "pnpm test:e2e is a first-class command");
   assert(
     exists(join(ROOT, "hub/gateway/test")) && exists(join(ROOT, "hub/mapper/test")),
     "gateway and mapper have a vitest-pool-workers test directory"
@@ -988,6 +1001,32 @@ function assertNode20Harness() {
   );
   const pkg = JSON.parse(read(join(ROOT, "package.json")));
   assert(pkg.engines?.node, "package.json declares an engines.node floor");
+}
+
+function assertNativeWebmcpPass() {
+  const protocol = read(join(ROOT, "packages/protocol/protocol.js"));
+  const bridge = read(join(ROOT, "packages/bridge/bridge.js"));
+  const polyfill = read(join(ROOT, "packages/bridge/webmcp-polyfill.js"));
+  const surface = read(join(ROOT, "hub/surface/public/surface.js"));
+  const doSrc = read(join(ROOT, "hub/gateway/src/hub-do.js"));
+  assert(/export function parseInputSchema/.test(protocol), "one parseInputSchema helper exists");
+  assert(/canonicalJson\(parseInputSchema\(inputSchema\)\)/.test(protocol), "schemaHash hashes after parse");
+  assert(/parseInputSchema\(tool\.inputSchema\)/.test(protocol), "toolDescriptor uses the helper");
+  assert(/parseInputSchema\(tool\.inputSchema\)/.test(doSrc), "HubDO publicCapability uses the helper");
+  assert(/parseInputSchema\(cap\.inputSchema\)/.test(surface), "surface confirm uses the helper");
+  assert(/JSON\.stringify\(payload\)/.test(bridge) || /JSON\.stringify\(args/.test(bridge), "handleInvoke stringifies args for native executeTool");
+  assert(/failed to parse input arguments/i.test(bridge), "object fallback is typed to parse errors, not every throw");
+  assert(/typeof args === "string"/.test(polyfill), "polyfill executeTool accepts a JSON string");
+}
+
+function assertSurfaceCsp() {
+  const headers = read(join(ROOT, "hub/surface/public/_headers"));
+  const html = read(join(ROOT, "hub/surface/public/index.html"));
+  assert(/Content-Security-Policy/.test(headers), "surface _headers sets CSP");
+  assert(/default-src 'self'/.test(headers), "CSP default-src is self");
+  assert(/default-src 'self'/.test(html), "index.html repeats CSP so a missed _headers still holds");
+  assert(!/unsafe-eval/.test(headers) && !/unsafe-eval/.test(html), "CSP does not allow unsafe-eval");
+  assert(/challenges\.cloudflare\.com/.test(headers), "CSP allows the Turnstile challenge origin");
 }
 
 function assertSurfaceOnlyInvoke() {
@@ -1025,6 +1064,8 @@ assertStubsExecute();
 assertJoinDoor();
 await assertPairing();
 assertSurfaceOnlyInvoke();
+assertNativeWebmcpPass();
+assertSurfaceCsp();
 await assertHardening();
 assertDeploy();
 assertNode20Harness();

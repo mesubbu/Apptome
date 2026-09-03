@@ -48,6 +48,30 @@ import {
   originOf,
 } from "../protocol/protocol.js";
 
+/**
+ * Chrome's documented executeTool takes a JSON string. The polyfill and the
+ * community IDL take an object. Always stringify first (both Chrome and the
+ * polyfill accept that). Retry with the object ONLY when the UA rejected the
+ * argument shape — never on a tool that already ran and then threw.
+ */
+function isExecuteInputError(err) {
+  const name = err?.name ?? "";
+  const msg = String(err?.message ?? "");
+  if (name === "DataError" || name === "SyntaxError") return true;
+  return /failed to parse input arguments/i.test(msg);
+}
+
+async function executeRegisteredTool(registered, args) {
+  const payload = args ?? {};
+  const encoded = JSON.stringify(payload);
+  try {
+    return await document.modelContext.executeTool(registered, encoded);
+  } catch (err) {
+    if (!isExecuteInputError(err)) throw err;
+    return await document.modelContext.executeTool(registered, payload);
+  }
+}
+
 const SURFACE_FRAME_ID = "connectome-surface-frame";
 const BADGE_ID = "connectome-badge";
 
@@ -146,7 +170,13 @@ export class PageBridge {
     }
     try {
       const registered = (await document.modelContext.getTools()).find((t) => t.name === toolName);
-      const data = await document.modelContext.executeTool(registered, args ?? {});
+      if (!registered) {
+        return this.respond(callId, failure(FAILURE.TOOL_NOT_FOUND, toolName), msg.from);
+      }
+      let data = await executeRegisteredTool(registered, args ?? {});
+      if (typeof data === "string") {
+        try { data = JSON.parse(data); } catch {}
+      }
       return this.respond(
         callId,
         { ok: true, data, tool: { name: found.name, untrusted: found.untrusted, origin: this.origin } },

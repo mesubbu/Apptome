@@ -1,0 +1,190 @@
+
+--- 2026-09-02T15:57:59.534Z debug
+🪵  Writing logs to "/home/subbu/Downloads/Projects/0BACKUP/Apptome/scratch/home/.config/.wrangler/logs/wrangler-2026-09-02_15-57-54_428.log"
+---
+
+--- 2026-09-02T15:57:59.530Z warn
+▲ [WARNING] Proxy environment variables detected. We'll use your proxy for fetch requests.
+
+
+---
+
+--- 2026-09-02T15:57:59.819Z debug
+.env file not found at "/home/subbu/Downloads/Projects/0BACKUP/Apptome/connectome/hub/mapper/.env". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2026-09-02T15:57:59.822Z debug
+.env file not found at "/home/subbu/Downloads/Projects/0BACKUP/Apptome/connectome/hub/mapper/.env.local". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2026-09-02T15:58:00.442Z log
+
+ ⛅️ wrangler 4.127.1
+────────────────────
+---
+
+--- 2026-09-02T15:58:00.675Z debug
+setting config
+---
+
+--- 2026-09-02T15:58:00.676Z debug
+Updating config... undefined undefined
+---
+
+--- 2026-09-02T15:58:00.710Z debug
+Metrics dispatcher: Posting data {"deviceId":"f58915be-3f65-4b52-972b-267e607c74ec","event":"wrangler command started","timestamp":1788364680710,"properties":{"amplitude_session_id":1788364680451,"amplitude_event_id":0,"wranglerVersion":"4.127.1","wranglerMajorVersion":4,"wranglerMinorVersion":127,"wranglerPatchVersion":1,"osPlatform":"Linux","osVersion":"#30~24.04.1-Ubuntu SMP PREEMPT_DYNAMIC Fri Aug  7 13:27:52 UTC 2","nodeVersion":25,"isFirstUsage":false,"configFileType":"none","isCI":false,"isPagesCI":false,"isWorkersCI":false,"isInteractive":false,"hasAssets":false,"agent":"antigravity","argsUsed":["config","inspectorPort","port","var"],"argsCombination":"config, inspectorPort, port, var","sanitizedCommand":"dev","sanitizedArgs":{},"currentAgentSkillsInstalled":null}}
+---
+
+--- 2026-09-02T15:58:01.503Z debug
+local dev variables file not found at ".dev.vars". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2026-09-02T15:58:01.506Z debug
+.env file not found at "/home/subbu/Downloads/Projects/0BACKUP/Apptome/connectome/hub/mapper/.env". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2026-09-02T15:58:01.508Z debug
+.env file not found at "/home/subbu/Downloads/Projects/0BACKUP/Apptome/connectome/hub/mapper/.env.local". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2026-09-02T15:58:01.564Z log
+Your Worker has access to the following bindings:
+---
+
+--- 2026-09-02T15:58:01.576Z log
+Binding                                                     Resource                      Mode
+---
+
+--- 2026-09-02T15:58:01.576Z log
+env.METRICS (connectome-map)                                Analytics Engine Dataset      local
+---
+
+--- 2026-09-02T15:58:01.576Z log
+env.RATE_LIMIT (30 requests/10s)                            Rate Limit                    local
+---
+
+--- 2026-09-02T15:58:01.617Z log
+env.AI_GATEWAY ("connectome-mapper")                        Environment Variable          local
+---
+
+--- 2026-09-02T15:58:01.617Z log
+env.AI_MODEL ("@cf/meta/llama-3.1-8b-instruct")             Environment Variable          local
+---
+
+--- 2026-09-02T15:58:01.617Z log
+env.SURFACE_ORIGIN ("(hidden)")                             Environment Variable          local
+---
+
+--- 2026-09-02T15:58:01.617Z log
+env.ALLOWED_ORIGINS ("(hidden)")                            Environment Variable          local
+---
+
+--- 2026-09-02T15:58:01.618Z log
+env.ENVIRONMENT ("(hidden)")                                Environment Variable          local
+---
+
+--- 2026-09-02T15:58:01.618Z log
+
+---
+
+--- 2026-09-02T15:58:02.403Z debug
+Metrics dispatcher: Failed to send request: Forbidden
+---
+
+--- 2026-09-02T15:58:03.217Z debug
+RemoteRuntimeController teardown beginning...
+---
+
+--- 2026-09-02T15:58:03.222Z debug
+RemoteRuntimeController teardown complete
+---
+
+--- 2026-09-02T15:58:03.251Z log
+⎔ Starting local server...
+---
+
+--- 2026-09-02T15:58:04.717Z log
+Wrangler detected this dev session is running in an AI agent.
+The Local Explorer API is available at http://localhost:8792/cdn-cgi/local/explorer/api
+Useful routes:
+  GET http://localhost:8792/cdn-cgi/local/explorer/api/local/workers - local Workers and bindings
+  GET http://localhost:8792/cdn-cgi/local/explorer/api/storage/kv/namespaces - KV namespaces
+  GET http://localhost:8792/cdn-cgi/local/explorer/api/d1/database - D1 databases
+  GET http://localhost:8792/cdn-cgi/local/explorer/api/r2/buckets - R2 buckets
+  GET http://localhost:8792/cdn-cgi/local/explorer/api/workers/durable_objects/namespaces - Durable Object namespaces
+  GET http://localhost:8792/cdn-cgi/local/explorer/api/workflows - Workflows
+  POST http://localhost:8792/cdn-cgi/local/explorer/api/local/observability/query - run a read-only SQL query (SELECT/WITH only) over captured request traces and console logs. Tables: spans, logs (read attributes via json(attributes)). Example:
+    curl -X POST http://localhost:8792/cdn-cgi/local/explorer/api/local/observability/query -H 'Content-Type: application/json' -d '{"sql":"SELECT service, name, outcome, duration_ms FROM spans WHERE parent_id IS NULL LIMIT 20"}'
+If the routes above don't cover what you need, fetch the full OpenAPI schema (large - use only as a last resort):
+  GET http://localhost:8792/cdn-cgi/local/explorer/api - OpenAPI schema
+---
+
+--- 2026-09-02T15:58:04.965Z debug
+[InspectorProxyWorker] handleProxyControllerIncomingMessage {"type":"reloadStart"}
+---
+
+--- 2026-09-02T15:58:06.507Z debug
+[InspectorProxyWorker] handleProxyControllerIncomingMessage {"type":"reloadComplete","proxyData":{"userWorkerUrl":{"protocol":"http:","hostname":"127.0.0.1","port":"39979"},"userWorkerInspectorUrl":{"protocol":"ws:","hostname":"127.0.0.1","port":"44749","pathname":"/core:user:mapper"},"userWorkerInnerUrlOverrides":{"protocol":"http:"},"headers":{"MF-Proxy-Shared-Secret":"0d65b114-b3ea-4efe-a8e5-80913bd0a265"},"liveReload":false,"proxyLogsToController":false}}
+---
+
+--- 2026-09-02T15:58:06.520Z debug
+[InspectorProxyWorker] reconnectRuntimeWebSocket
+---
+
+--- 2026-09-02T15:58:06.539Z debug
+[InspectorProxyWorker] NEW RUNTIME WEBSOCKET http://127.0.0.1:44749/core:user:mapper
+---
+
+--- 2026-09-02T15:58:06.558Z debug
+[InspectorProxyWorker] RUNTIME INCOMING MESSAGE {
+  method: 'Runtime.executionContextCreated',
+  params: {
+    context: {
+      id: 21659297,
+      origin: '',
+      name: 'Worker',
+      uniqueId: '985223645874406171.-7620418948415680659'
+    }
+  }
+}
+---
+
+--- 2026-09-02T15:58:06.569Z debug
+[InspectorProxyWorker] SEND TO DEVTOOLS {"method":"Runtime.executionContextsCleared"}
+---
+
+--- 2026-09-02T15:58:06.593Z debug
+[InspectorProxyWorker] RUNTIME WEBSOCKET OPENED
+---
+
+--- 2026-09-02T15:58:06.626Z debug
+[InspectorProxyWorker] SEND TO RUNTIME {"method":"Runtime.enable","id":100000001}
+---
+
+--- 2026-09-02T15:58:06.731Z debug
+[InspectorProxyWorker] RUNTIME INCOMING MESSAGE { id: 100000001, result: {} }
+---
+
+--- 2026-09-02T15:58:16.513Z debug
+[InspectorProxyWorker] SEND TO RUNTIME {"method":"Runtime.getIsolateId","id":100000002}
+---
+
+--- 2026-09-02T15:58:16.521Z debug
+[InspectorProxyWorker] RUNTIME INCOMING MESSAGE { id: 100000002, result: { id: '4fa501441d100577' } }
+---
+
+--- 2026-09-02T15:58:26.519Z debug
+[InspectorProxyWorker] SEND TO RUNTIME {"method":"Runtime.getIsolateId","id":100000003}
+---
+
+--- 2026-09-02T15:58:26.521Z debug
+[InspectorProxyWorker] RUNTIME INCOMING MESSAGE { id: 100000003, result: { id: '4fa501441d100577' } }
+---
+
+--- 2026-09-02T15:58:36.525Z debug
+[InspectorProxyWorker] SEND TO RUNTIME {"method":"Runtime.getIsolateId","id":100000004}
+---
+
+--- 2026-09-02T15:58:36.528Z debug
+[InspectorProxyWorker] RUNTIME INCOMING MESSAGE { id: 100000004, result: { id: '4fa501441d100577' } }
+---

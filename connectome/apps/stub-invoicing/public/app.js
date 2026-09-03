@@ -7,9 +7,33 @@
  * document.modelContext and stops. That is the entire join contract.
  */
 
-const invoices = [];
+const STORE = "connectome.stub.invoices";
 
-let invoiceSeq = 1000;
+function loadState() {
+  try {
+    const raw = sessionStorage.getItem(STORE);
+    if (!raw) return { invoices: [], invoiceSeq: 1000 };
+    const parsed = JSON.parse(raw);
+    return {
+      invoices: Array.isArray(parsed.invoices) ? parsed.invoices : [],
+      invoiceSeq: Number(parsed.invoiceSeq) || 1000,
+    };
+  } catch {
+    return { invoices: [], invoiceSeq: 1000 };
+  }
+}
+
+function saveState() {
+  try {
+    sessionStorage.setItem(STORE, JSON.stringify({ invoices, invoiceSeq }));
+  } catch {
+    /* quota / private mode */
+  }
+}
+
+const loaded = loadState();
+const invoices = loaded.invoices;
+let invoiceSeq = loaded.invoiceSeq;
 let flashId = null;
 let flashTimer = null;
 
@@ -118,6 +142,7 @@ function appendDraftInvoice({ customerName, customerEmail, amount, currency, mem
     createdAt: new Date().toISOString(),
   };
   invoices.unshift(invoice);
+  saveState();
   flash(invoice.invoiceId);
   render();
   return invoice;

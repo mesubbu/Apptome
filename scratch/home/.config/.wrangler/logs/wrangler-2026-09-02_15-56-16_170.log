@@ -1,0 +1,198 @@
+
+--- 2026-09-02T15:56:20.508Z debug
+🪵  Writing logs to "/home/subbu/Downloads/Projects/0BACKUP/Apptome/scratch/home/.config/.wrangler/logs/wrangler-2026-09-02_15-56-16_170.log"
+---
+
+--- 2026-09-02T15:56:20.508Z warn
+▲ [WARNING] Proxy environment variables detected. We'll use your proxy for fetch requests.
+
+
+---
+
+--- 2026-09-02T15:56:20.909Z debug
+.env file not found at "/home/subbu/Downloads/Projects/0BACKUP/Apptome/connectome/hub/gateway/.env". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2026-09-02T15:56:20.910Z debug
+.env file not found at "/home/subbu/Downloads/Projects/0BACKUP/Apptome/connectome/hub/gateway/.env.local". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2026-09-02T15:56:21.090Z log
+
+ ⛅️ wrangler 4.127.1
+────────────────────
+---
+
+--- 2026-09-02T15:56:21.235Z debug
+setting config
+---
+
+--- 2026-09-02T15:56:21.236Z debug
+Updating config... undefined undefined
+---
+
+--- 2026-09-02T15:56:21.310Z debug
+Metrics dispatcher: Posting data {"deviceId":"f58915be-3f65-4b52-972b-267e607c74ec","event":"wrangler command started","timestamp":1788364581309,"properties":{"amplitude_session_id":1788364581091,"amplitude_event_id":0,"wranglerVersion":"4.127.1","wranglerMajorVersion":4,"wranglerMinorVersion":127,"wranglerPatchVersion":1,"osPlatform":"Linux","osVersion":"#30~24.04.1-Ubuntu SMP PREEMPT_DYNAMIC Fri Aug  7 13:27:52 UTC 2","nodeVersion":25,"isFirstUsage":false,"configFileType":"none","isCI":false,"isPagesCI":false,"isWorkersCI":false,"isInteractive":false,"hasAssets":false,"agent":"antigravity","argsUsed":["inspectorPort","port","var"],"argsCombination":"inspectorPort, port, var","sanitizedCommand":"dev","sanitizedArgs":{},"currentAgentSkillsInstalled":null}}
+---
+
+--- 2026-09-02T15:56:21.637Z debug
+local dev variables file not found at ".dev.vars". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2026-09-02T15:56:21.639Z debug
+.env file not found at "/home/subbu/Downloads/Projects/0BACKUP/Apptome/connectome/hub/gateway/.env". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2026-09-02T15:56:21.644Z debug
+.env file not found at "/home/subbu/Downloads/Projects/0BACKUP/Apptome/connectome/hub/gateway/.env.local". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2026-09-02T15:56:21.663Z log
+Your Worker has access to the following bindings:
+---
+
+--- 2026-09-02T15:56:21.664Z log
+Binding                                     Resource                      Mode
+---
+
+--- 2026-09-02T15:56:21.664Z log
+env.HUB (HubDO)                             Durable Object                local
+---
+
+--- 2026-09-02T15:56:21.664Z log
+env.MANIFESTS                               KV Namespace                  local
+---
+
+--- 2026-09-02T15:56:21.664Z log
+env.METRICS (connectome-audit)              Analytics Engine Dataset      local
+---
+
+--- 2026-09-02T15:56:21.677Z log
+env.RATE_LIMIT (60 requests/10s)            Rate Limit                    local
+---
+
+--- 2026-09-02T15:56:21.678Z log
+env.PAIR_LIMIT (8 requests/60s)             Rate Limit                    local
+---
+
+--- 2026-09-02T15:56:21.678Z log
+env.ENVIRONMENT ("(hidden)")                Environment Variable          local
+---
+
+--- 2026-09-02T15:56:21.678Z log
+env.SURFACE_ORIGIN ("(hidden)")             Environment Variable          local
+---
+
+--- 2026-09-02T15:56:21.678Z log
+env.ALLOWED_ORIGINS ("(hidden)")            Environment Variable          local
+---
+
+--- 2026-09-02T15:56:21.678Z log
+
+---
+
+--- 2026-09-02T15:56:22.522Z debug
+Metrics dispatcher: Failed to send request: Forbidden
+---
+
+--- 2026-09-02T15:56:27.014Z log
+Wrangler detected this dev session is running in an AI agent.
+The Local Explorer API is available at http://localhost:8791/cdn-cgi/local/explorer/api
+Useful routes:
+  GET http://localhost:8791/cdn-cgi/local/explorer/api/local/workers - local Workers and bindings
+  GET http://localhost:8791/cdn-cgi/local/explorer/api/storage/kv/namespaces - KV namespaces
+  GET http://localhost:8791/cdn-cgi/local/explorer/api/d1/database - D1 databases
+  GET http://localhost:8791/cdn-cgi/local/explorer/api/r2/buckets - R2 buckets
+  GET http://localhost:8791/cdn-cgi/local/explorer/api/workers/durable_objects/namespaces - Durable Object namespaces
+  GET http://localhost:8791/cdn-cgi/local/explorer/api/workflows - Workflows
+  POST http://localhost:8791/cdn-cgi/local/explorer/api/local/observability/query - run a read-only SQL query (SELECT/WITH only) over captured request traces and console logs. Tables: spans, logs (read attributes via json(attributes)). Example:
+    curl -X POST http://localhost:8791/cdn-cgi/local/explorer/api/local/observability/query -H 'Content-Type: application/json' -d '{"sql":"SELECT service, name, outcome, duration_ms FROM spans WHERE parent_id IS NULL LIMIT 20"}'
+If the routes above don't cover what you need, fetch the full OpenAPI schema (large - use only as a last resort):
+  GET http://localhost:8791/cdn-cgi/local/explorer/api - OpenAPI schema
+---
+
+--- 2026-09-02T15:56:28.950Z debug
+Writing additional module to output /home/subbu/Downloads/Projects/0BACKUP/Apptome/connectome/hub/gateway/.wrangler/tmp/dev-h0Rswv/bd797a7d89e0da28c4ed19a5b3ae3ac94e02fec7-protocol.js.txt
+---
+
+--- 2026-09-02T15:56:28.973Z debug
+Writing additional module to output /home/subbu/Downloads/Projects/0BACKUP/Apptome/connectome/hub/gateway/.wrangler/tmp/dev-h0Rswv/cb1cbaf2566f6c4fde781c2fd73bf73aa6499839-bridge.js.txt
+---
+
+--- 2026-09-02T15:56:28.981Z debug
+Writing additional module to output /home/subbu/Downloads/Projects/0BACKUP/Apptome/connectome/hub/gateway/.wrangler/tmp/dev-h0Rswv/957752f6dfd1609897bc054e45402daedac11b93-webmcp-polyfill.js.txt
+---
+
+--- 2026-09-02T15:56:29.008Z debug
+RemoteRuntimeController teardown beginning...
+---
+
+--- 2026-09-02T15:56:29.009Z debug
+RemoteRuntimeController teardown complete
+---
+
+--- 2026-09-02T15:56:29.086Z log
+⎔ Starting local server...
+---
+
+--- 2026-09-02T15:56:29.170Z debug
+[InspectorProxyWorker] handleProxyControllerIncomingMessage {"type":"reloadStart"}
+---
+
+--- 2026-09-02T15:56:30.811Z debug
+[InspectorProxyWorker] handleProxyControllerIncomingMessage {"type":"reloadComplete","proxyData":{"userWorkerUrl":{"protocol":"http:","hostname":"127.0.0.1","port":"40103"},"userWorkerInspectorUrl":{"protocol":"ws:","hostname":"127.0.0.1","port":"42383","pathname":"/core:user:connectome-gateway"},"userWorkerInnerUrlOverrides":{"protocol":"http:"},"headers":{"MF-Proxy-Shared-Secret":"e2c844af-50fd-4c70-a612-0b23215ee9a7"},"liveReload":false,"proxyLogsToController":false}}
+---
+
+--- 2026-09-02T15:56:30.827Z debug
+[InspectorProxyWorker] reconnectRuntimeWebSocket
+---
+
+--- 2026-09-02T15:56:30.835Z debug
+[InspectorProxyWorker] RUNTIME INCOMING MESSAGE {
+  method: 'Runtime.executionContextCreated',
+  params: {
+    context: {
+      id: 226414433,
+      origin: '',
+      name: 'Worker',
+      uniqueId: '2662374293913204147.8692432803288147213'
+    }
+  }
+}
+---
+
+--- 2026-09-02T15:56:30.952Z debug
+[InspectorProxyWorker] NEW RUNTIME WEBSOCKET http://127.0.0.1:42383/core:user:connectome-gateway
+---
+
+--- 2026-09-02T15:56:30.978Z debug
+[InspectorProxyWorker] SEND TO DEVTOOLS {"method":"Runtime.executionContextsCleared"}
+---
+
+--- 2026-09-02T15:56:30.988Z debug
+[InspectorProxyWorker] RUNTIME WEBSOCKET OPENED
+---
+
+--- 2026-09-02T15:56:30.999Z debug
+[InspectorProxyWorker] SEND TO RUNTIME {"method":"Runtime.enable","id":100000001}
+---
+
+--- 2026-09-02T15:56:31.001Z debug
+[InspectorProxyWorker] RUNTIME INCOMING MESSAGE { id: 100000001, result: {} }
+---
+
+--- 2026-09-02T15:56:40.815Z debug
+[InspectorProxyWorker] SEND TO RUNTIME {"method":"Runtime.getIsolateId","id":100000002}
+---
+
+--- 2026-09-02T15:56:40.818Z debug
+[InspectorProxyWorker] RUNTIME INCOMING MESSAGE { id: 100000002, result: { id: '8fcd33cd8b47cc0' } }
+---
+
+--- 2026-09-02T15:56:50.873Z debug
+[InspectorProxyWorker] SEND TO RUNTIME {"method":"Runtime.getIsolateId","id":100000003}
+---
+
+--- 2026-09-02T15:56:50.905Z debug
+[InspectorProxyWorker] RUNTIME INCOMING MESSAGE { id: 100000003, result: { id: '8fcd33cd8b47cc0' } }
+---
