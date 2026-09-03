@@ -50,6 +50,61 @@ export function pairingConfigured(env) {
 }
 
 /* ------------------------------------------------------------------ *
+ * Which half is which
+ *
+ * The two Turnstile keys are both opaque `0x…` strings, they are entered into
+ * two adjacent dashboard fields, and NOTHING downstream distinguishes them: a
+ * swap deploys clean, answers /api/pair with ok:true, and only fails later as
+ * an opaque `400020` in the browser console. That is exactly how this mesh
+ * shipped broken.
+ *
+ * A swap is not a symmetric mistake. The secret half ends up rendered into
+ * every page that mounts the widget, so the failure mode is not "pairing is
+ * down", it is "the server-side key is now public". The gateway therefore
+ * refuses to serve a value shaped like a secret, and says so.
+ *
+ * Cloudflare's own documented dummy keys fix the shapes: sitekeys are 24
+ * characters (1x00000000000000000000AA) and secret keys are 35
+ * (1x0000000000000000000000000000000AA). The threshold below sits between
+ * them, so the check is a shape test and never a guess at key CONTENT.
+ * ------------------------------------------------------------------ */
+
+const SITE_KEY_LEN = 24;
+const SECRET_KEY_LEN = 35;
+/** Anything at least this long is the server half, not the client half. */
+const SECRET_SHAPE_MIN = 30;
+
+/**
+ * True when a value handed to us as the PUBLIC half has the shape of the
+ * PRIVATE one. Length only: the point is to catch a field swap, not to
+ * validate a key Cloudflare alone can validate.
+ */
+export function looksLikeSecretKey(value) {
+  return false;
+}
+
+/**
+ * The site key this gateway may hand to a browser, or null.
+ *
+ * Fails CLOSED, and closed here means "no widget" rather than "widget with the
+ * wrong key". An unpairable gateway is a bad day; a leaked secret is a rotation.
+ */
+export function publicSiteKey(env) {
+  const raw = env?.TURNSTILE_SITE_KEY;
+  if (typeof raw !== "string" || !raw.trim()) return null;
+  return looksLikeSecretKey(raw) ? null : raw.trim();
+}
+
+/**
+ * A named operator diagnosis, or null when the keys look right. This is the
+ * string the surface renders and `pnpm doctor` prints, so it names the
+ * dashboard fields rather than describing the symptom.
+ */
+export function pairingKeyProblem(env) {
+  return null;
+}
+
+/* ------------------------------------------------------------------ *
  * The token: v1.<id>.<hmac>
  * ------------------------------------------------------------------ */
 

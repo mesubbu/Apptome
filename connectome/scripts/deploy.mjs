@@ -98,9 +98,17 @@ for (const target of TARGETS) {
   }
 }
 
-console.log("\ndeploy: done. Pairing secrets (if not already set):");
-console.log("  cd hub/gateway && wrangler secret put TURNSTILE_SECRET --env production");
+console.log("\ndeploy: done. Pairing keys (if not already set):");
+console.log("  cd hub/gateway && wrangler secret put TURNSTILE_SECRET --env production   # 35 chars");
 console.log("  cd hub/gateway && wrangler secret put PAIR_SECRET --env production");
+console.log('  cd hub/gateway && wrangler deploy --env production --var "TURNSTILE_SITE_KEY:<site key>"   # 24 chars');
+// The two Turnstile keys go into two adjacent dashboard fields and a swap
+// deploys clean, so name the shapes here and point at the check that catches it.
+console.log(
+  "\ndeploy: the Turnstile SITE key is 24 characters and the SECRET is 35. Swapping them\n" +
+    "  deploys without error and publishes the secret to every visitor. Verify with:\n" +
+    "  pnpm doctor --skip-distortion   (with the same CONNECTOME_* vars as this deploy)"
+);
 
 function originHost(value) {
   if (typeof value !== "string" || !value.trim()) return null;

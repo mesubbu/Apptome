@@ -270,7 +270,12 @@ function viewPair(v) {
 
   if (v.pairing?.configured === false) {
     box.append(
-      pText("This gateway has no pairing keys configured, so it cannot open a connectome.")
+      pText(
+        // A swapped-key deploy is an operator problem, not a user problem. Say
+        // which knob is wrong instead of offering a widget that cannot work.
+        v.pairing?.error ??
+          "This gateway has no pairing keys configured, so it cannot open a connectome."
+      )
     );
     wrap.append(box);
     return wrap;
@@ -313,13 +318,36 @@ async function mountTurnstile(siteKey, slot, status) {
   window.turnstile.render(slot, {
     sitekey: siteKey,
     callback: (token) => completePairing(token, status),
-    "error-callback": () => {
-      status.textContent = "That check did not complete. Try again.";
+    "error-callback": (code) => {
+      // Turnstile hands the code to this callback and, when the callback
+      // returns truthy, logs nothing. Swallowing it turned a one-line
+      // misconfiguration into a silent "Try again" loop, so render it.
+      status.textContent = turnstileErrorText(code);
+      return true;
     },
     "expired-callback": () => {
       status.textContent = "That check expired. Try again.";
     },
   });
+}
+
+/**
+ * Turnstile's codes are documented and stable in their first three digits.
+ * `4000*`/`1101*` are a wrong or disabled key and no amount of retrying fixes
+ * them, so those must not be reported as "try again".
+ */
+function turnstileErrorText(code) {
+  const c = String(code ?? "");
+  if (c === "400020" || c === "110100" || c === "110110") {
+    return `The challenge rejected this gateway's site key (${c}). Its pairing keys need fixing; retrying will not help.`;
+  }
+  if (c === "400070") {
+    return `This gateway's challenge key is disabled (${c}). Retrying will not help.`;
+  }
+  if (c === "110200") {
+    return `The challenge is not authorised for this hostname (${c}). Retrying will not help.`;
+  }
+  return c ? `That check did not complete (${c}). Try again.` : "That check did not complete. Try again.";
 }
 
 async function completePairing(token, status) {

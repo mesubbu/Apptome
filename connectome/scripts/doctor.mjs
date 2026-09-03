@@ -60,6 +60,41 @@ function stripComments(src) {
     .replace(/(^|[^:])\/\/.*$/gm, "$1");
 }
 
+/**
+ * The pairing keys live in the Worker's settings, so this asks the gateway what
+ * it is actually serving. `configured:false` with a diagnosis is the gateway
+ * having caught a swap; a secret-shaped siteKey is an OLDER gateway that has
+ * not caught it and is publishing the secret half to every visitor.
+ */
+async function checkPairingKeys(gateway) {
+  let body;
+  try {
+    const res = await fetch(new URL("/api/pair", gateway), { signal: AbortSignal.timeout(2500) });
+    body = await res.json();
+  } catch {
+    warn("could not read GET /api/pair — pairing keys not checked");
+    return;
+  }
+
+  if (body?.code === "PAIRING_MISCONFIGURED" || body?.configured === false) {
+    fail(`gateway cannot pair: ${body?.error ?? "pairing is not configured"}`);
+    return;
+  }
+  if (typeof body?.siteKey === "string" && body.siteKey.trim().length >= 30) {
+    fail(
+      `GET /api/pair is serving a ${body.siteKey.trim().length}-character site key, which is the ` +
+        `shape of a Turnstile SECRET. Rotate that secret and swap the two values in the ` +
+        `gateway Worker's settings.`
+    );
+    return;
+  }
+  if (body?.required && !body?.siteKey) {
+    fail("gateway requires pairing but serves no site key");
+    return;
+  }
+  ok("gateway serves a site-key-shaped TURNSTILE_SITE_KEY");
+}
+
 console.log("Connectome doctor\n");
 
 console.log("vendored copies");
@@ -176,6 +211,13 @@ if (!offline) {
       if (r.want) assert(r.service === r.want, `${r.name} /health is ${r.want}`);
       else ok(`${r.name} is reachable`);
     }
+  }
+
+  // The keys are set in the dashboard, not in this repo, so a static check
+  // cannot see them — and a swap deploys clean, answers ok:true, and fails only
+  // as an opaque `400020` in a browser console. Ask the live gateway instead.
+  if (results.find((r) => r.name === "gateway")?.up) {
+    await checkPairingKeys(mesh.gateway);
   }
 } else {
   ok("live probes skipped (--offline)");

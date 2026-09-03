@@ -22,6 +22,8 @@ import {
   mintToken,
   pairCookie,
   pairingConfigured,
+  pairingKeyProblem,
+  publicSiteKey,
   verifyTurnstile,
 } from "./pairing.js";
 import { fetchManifest } from "./manifest.js";
@@ -185,7 +187,8 @@ function pairingRequired(env) {
 /**
  * GET  /api/pair — is this browser paired, and which site key should the widget
  *                  use? The site key is public by design; the SECRET half never
- *                  leaves the Worker.
+ *                  leaves the Worker — `publicSiteKey` enforces that rather
+ *                  than trusting whoever filled in the dashboard field.
  * POST /api/pair — verify the challenge, mint a connectome, set the cookie.
  *
  * Request-scoped and human-present: it runs because someone clicked a checkbox.
@@ -195,12 +198,17 @@ function pairingRequired(env) {
  */
 async function pairRoute(request, env) {
   if (request.method === "GET") {
+    // A misconfigured gateway reports itself. Without this the surface mounts a
+    // widget with the wrong key and the only evidence is `400020` in a console
+    // the operator is not reading.
+    const keyProblem = pairingKeyProblem(env);
     return json({
       ok: true,
       paired: Boolean(await connectomeId(env, request)),
       required: !isLocal(env),
-      configured: pairingConfigured(env),
-      siteKey: env?.TURNSTILE_SITE_KEY ?? null,
+      configured: pairingConfigured(env) && !keyProblem,
+      siteKey: publicSiteKey(env),
+      ...(keyProblem ? { code: "PAIRING_MISCONFIGURED", error: keyProblem } : {}),
     });
   }
 
@@ -224,6 +232,14 @@ async function pairRoute(request, env) {
       { ok: false, code: "PAIRING_UNCONFIGURED", error: "pairing is not configured on this gateway" },
       503
     );
+  }
+
+  // Swapped keys cannot verify anything, so siteverify would only answer
+  // `invalid-input-secret` — true, and useless to the one person who can fix
+  // it. Refuse here instead, with the diagnosis.
+  const keyProblem = pairingKeyProblem(env);
+  if (keyProblem) {
+    return json({ ok: false, code: "PAIRING_MISCONFIGURED", error: keyProblem }, 503);
   }
 
   const body = await request.json().catch(() => null);

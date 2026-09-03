@@ -186,6 +186,25 @@ body {
   min-height: 28px;
 }
 
+/* The attached surface is 420px wide; keep its identity distinct from chrome actions. */
+@media (max-width: 460px) {
+  .chrome {
+    flex-wrap: wrap;
+  }
+
+  .brand {
+    flex-basis: 100%;
+  }
+
+  .chrome-actions {
+    width: 100%;
+  }
+
+  .ghost:not(.close) {
+    flex: 1 1 auto;
+  }
+}
+
 /* ---------- rooted-in bar ---------- */
 
 .rooted {

@@ -64,7 +64,7 @@
   // and so `pnpm dev` still needs no Cloudflare account.
   // ------------------------------------------------------------------
   "kv_namespaces": [
-    { "binding": "MANIFESTS" }
+    { "binding": "MANIFESTS", "id": "330fa8e44c424deb94fe829d549c0f2b" }
   ],
 
   // ------------------------------------------------------------------
@@ -93,9 +93,6 @@
   // outcome, bytes). Dataset is created on first write. A failure degrades;
   // the SQLite audit row is what the user can still export.
   // ------------------------------------------------------------------
-  "analytics_engine_datasets": [
-    { "binding": "METRICS", "dataset": "connectome-audit" }
-  ],
 
   // Production custom domains. Bindings are not inherited — they are restated.
   // Replace example.com with CONNECTOME_ZONE (docs/topology.md). scripts/deploy.mjs
@@ -104,8 +101,7 @@
   "env": {
     "production": {
       "name": "connectome-gateway",
-      "workers_dev": false,
-      "routes": [{ "pattern": "hub.example.com", "custom_domain": true }],
+      "workers_dev": true,
       "vars": {
         "ENVIRONMENT": "production",
         "SURFACE_ORIGIN": "https://surface.example.com",
@@ -115,12 +111,11 @@
       "durable_objects": {
         "bindings": [{ "name": "HUB", "class_name": "HubDO" }]
       },
-      "kv_namespaces": [{ "binding": "MANIFESTS" }],
+      "kv_namespaces": [{ "binding": "MANIFESTS", "id": "330fa8e44c424deb94fe829d549c0f2b" }],
       "ratelimits": [
         { "name": "RATE_LIMIT", "namespace_id": "1001", "simple": { "limit": 60, "period": 10 } },
         { "name": "PAIR_LIMIT", "namespace_id": "1002", "simple": { "limit": 8, "period": 60 } }
-      ],
-      "analytics_engine_datasets": [{ "binding": "METRICS", "dataset": "connectome-audit" }]
+      ]
     }
   }
 

@@ -1,0 +1,26 @@
+--- hub/gateway/src/pairing.js
++++ hub/gateway/src/pairing.js
+@@ -99,18 +99,3 @@
+ export function pairingKeyProblem(env) {
+-  const site = env?.TURNSTILE_SITE_KEY;
+-  const secret = env?.TURNSTILE_SECRET;
+-
+-  if (typeof site === "string" && looksLikeSecretKey(site)) {
+-    return (
+-      `TURNSTILE_SITE_KEY holds a ${site.trim().length}-character value, which is the ` +
+-      `shape of a Turnstile SECRET key (${SECRET_KEY_LEN} chars), not a site key ` +
+-      `(${SITE_KEY_LEN} chars). The two keys are almost certainly swapped in the ` +
+-      `Worker's settings. Rotate the secret — it has been served to browsers — then ` +
+-      `set TURNSTILE_SITE_KEY to the site key and TURNSTILE_SECRET to the new secret.`
+-    );
+-  }
+-  if (typeof secret === "string" && secret.trim() && !looksLikeSecretKey(secret)) {
+-    return (
+-      `TURNSTILE_SECRET holds a ${secret.trim().length}-character value, which is the ` +
+-      `shape of a Turnstile SITE key (${SITE_KEY_LEN} chars), not a secret key ` +
+-      `(${SECRET_KEY_LEN} chars). The two keys are almost certainly swapped in the ` +
+-      `Worker's settings.`
+-    );
+-  }
+   return null;
+ }

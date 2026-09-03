@@ -43,7 +43,7 @@
 import { assertNoValues } from "../../../packages/protocol/protocol.js";
 
 /** Used only if AI_MODEL is unset. Matches the shape wrangler.jsonc documents. */
-const DEFAULT_MODEL = "@cf/meta/llama-3.1-8b-instruct";
+const DEFAULT_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
 
 /** Bounds, so a hostile schema cannot blow out the context window or the bill. */
 const MAX_FIELDS = 60;
@@ -104,16 +104,25 @@ export async function map(request, env) {
       temperature: 0,
       max_tokens: MAX_TOKENS,
     }, gatewayOptions(env));
-  } catch {
+  } catch (err) {
+    console.error("AI RUN ERROR:", err);
     // Model down, quota spent, gateway misconfigured, timeout. All the same
     // answer: the deterministic mapper is still right here.
     return null;
   }
 
   const parsed = parseReply(reply);
-  if (!parsed) return null;
+  if (!parsed) {
+    console.error("AI RAW REPLY FAILED PARSE:", reply);
+    return null;
+  }
 
-  return validate(parsed, source, targets);
+  const validated = validate(parsed, source, targets);
+  if (!validated) {
+    console.error("AI VALIDATE FAILED FOR PARSED:", parsed);
+    return null;
+  }
+  return validated;
 }
 
 /**
@@ -168,6 +177,11 @@ function clip(value) {
  * not to. Being lenient HERE is safe precisely because validate() is not.
  */
 function parseReply(reply) {
+  if (typeof reply === "object" && reply !== null) {
+    if (reply.response && typeof reply.response === "object") return reply.response;
+    if (reply.mapping && typeof reply.mapping === "object") return reply;
+  }
+  
   const text =
     typeof reply === "string"
       ? reply

@@ -107,7 +107,11 @@ export class PageBridge {
 
     if (this.transport === TRANSPORT.EDGE) {
       this.keyPair = await generateSessionKeys();
-      await this.openSocket();
+      try {
+        await this.openSocket();
+      } catch (err) {
+        console.warn("Connectome: could not connect to hub (unpaired?). Badge will mount surface locally.");
+      }
     } else {
       this.listenToExtension();
     }
@@ -116,7 +120,9 @@ export class PageBridge {
     // late, or drops them on sign-out, must be reflected without polling.
     document.modelContext.addEventListener?.("toolchange", () => this.announce());
 
-    await this.announce();
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      await this.announce();
+    }
     this.installBadge();
     window.addEventListener("beforeunload", () => this.send({ t: M.BYE, sessionId: this.sessionId }));
     return this;
@@ -335,9 +341,9 @@ export class PageBridge {
       right: "0",
       transform: "translateY(-50%) rotate(180deg)",
       writingMode: "vertical-rl",
-      padding: "12px 6px",
-      font: "600 11px/1 ui-sans-serif, system-ui, sans-serif",
-      letterSpacing: ".08em",
+      padding: "16px 8px",
+      font: "600 14px/1 ui-sans-serif, system-ui, sans-serif",
+      letterSpacing: ".1em",
       color: "#fff",
       background: "#111827",
       border: "0",
@@ -345,7 +351,15 @@ export class PageBridge {
       cursor: "pointer",
       zIndex: "2147483645",
     });
-    badge.addEventListener("click", () => this.send({ t: "request-surface", sessionId: this.sessionId }));
+    badge.addEventListener("click", () => {
+      badge.style.opacity = "0.5";
+      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        this.send({ t: "request-surface", sessionId: this.sessionId });
+      } else {
+        this.mountSurface("unpaired");
+      }
+      setTimeout(() => (badge.style.opacity = "1"), 2000);
+    });
     document.documentElement.appendChild(badge);
   }
 }

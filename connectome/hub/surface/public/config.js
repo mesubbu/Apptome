@@ -14,5 +14,5 @@
  */
 
 export const EXT_ID = "emdpceafindjgkgpgajjapoeklpjkogo";
-export const GATEWAY_URL = "http://localhost:8791";
-export const MAPPER_URL = "http://localhost:8792";
+export const GATEWAY_URL = "https://connectome-gateway.rampalli1.workers.dev";
+export const MAPPER_URL = "https://mapper.rampalli1.workers.dev";
