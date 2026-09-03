@@ -24,7 +24,7 @@ We have deployed three WebMCP-enabled "spoke" applications and the Connectome Hu
 6. Watch as our Cloudflare AI Agent semantically maps the data from the CRM tool's output to the Invoicing tool's `inputSchema`.
 7. Click **Confirm** to execute the tool and see the invoice generated across origins!
 
-## 🧠 How it Works ( **More details in FAQ.md**)
+## 🧠 How it Works ( More details in FAQ.md)
 
 Connectome leverages the **Model Context Protocol for Web (WebMCP)** to allow humans and agents to collaborate safely. 
 
