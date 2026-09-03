@@ -1,4 +1,4 @@
-# Apptome : a Connectome for Apps
+# Connectome (Apptome)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 **Open Source License:** This project is open source and licensed under the [MIT License](LICENSE). 
@@ -24,7 +24,7 @@ We have deployed three WebMCP-enabled "spoke" applications and the Connectome Hu
 6. Watch as our Cloudflare AI Agent semantically maps the data from the CRM tool's output to the Invoicing tool's `inputSchema`.
 7. Click **Confirm** to execute the tool and see the invoice generated across origins!
 
-## 🧠 How it Works ( More details in FAQ.md)
+## 🧠 How it Works
 
 Connectome leverages the **Model Context Protocol for Web (WebMCP)** to allow humans and agents to collaborate safely. 
 
@@ -38,6 +38,29 @@ Connectome leverages the **Model Context Protocol for Web (WebMCP)** to allow hu
 - `connectome/hub/mapper/` - The Cloudflare Worker running the AI semantic mapping agent.
 - `connectome/hub/surface/` - The cross-origin UI sidebar.
 - `connectome/packages/bridge/` - The client-side WebMCP bridge and polyfill.
+
+## 💻 Running Locally (Demo Mode)
+
+Want to see the entire mesh (Gateway, Mapper, Surface, and the three Stub Apps) running on your own machine? You can run the entire Connectome architecture locally with a single command.
+
+1. Clone the repository:
+   ```bash
+   git clone <your-repo-url>
+   ```
+2. Navigate into the connectome directory:
+   ```bash
+   cd connectome
+   ```
+3. Install dependencies using pnpm:
+   ```bash
+   pnpm install
+   ```
+4. Start the local mesh:
+   ```bash
+   pnpm run dev
+   ```
+
+This will spin up all 6 local Cloudflare Workers and print the localhost URLs to your terminal. When running locally (`ENVIRONMENT=local`), the Turnstile security pairing is completely bypassed, so you can test the WebMCP execution flows immediately without needing a Cloudflare account.
 
 ## 📄 License
 
